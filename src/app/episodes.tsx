@@ -1,4 +1,3 @@
-import episodeLinks from '@/data/episode-links.json';
 import { XMLParser } from 'fast-xml-parser';
 import { useEffect, useState } from 'react';
 import {
@@ -26,6 +25,8 @@ type Episode = {
 const RSS_URL =
   'https://anchor.fm/s/11561f8bc/podcast/rss';
 
+const EPISODE_LINKS_URL =
+  'https://raw.githubusercontent.com/FullerWallit1995/wookiees-and-wolves/main/src/data/episode-links.json';
 export default function EpisodesScreen() {
     const [episodes, setEpisodes] = useState<Episode[]>([]);
 const [loading, setLoading] = useState(true);
@@ -36,13 +37,21 @@ useEffect(() => {
       setLoading(true);
       setError(false);
 
-      const response = await fetch(RSS_URL);
+      const [rssResponse, linksResponse] = await Promise.all([
+  fetch(RSS_URL),
+  fetch(EPISODE_LINKS_URL),
+]);
 
-      if (!response.ok) {
-        throw new Error('Could not load RSS feed');
-      }
+if (!rssResponse.ok) {
+  throw new Error('Could not load RSS feed');
+}
 
-      const xml = await response.text();
+if (!linksResponse.ok) {
+  throw new Error('Could not load episode links');
+}
+
+const xml = await rssResponse.text();
+const episodeLinks = await linksResponse.json();
 
       const parser = new XMLParser({
         ignoreAttributes: false,
@@ -63,7 +72,11 @@ useEffect(() => {
       item.title ?? 'Untitled Episode';
 
     const links = episodeLinks.episodes.find(
-      (episode) =>
+      (episode: {
+  match: string;
+  youtube: string;
+  spotify: string;
+}) =>
         title
           .toLowerCase()
           .includes(episode.match.toLowerCase())
