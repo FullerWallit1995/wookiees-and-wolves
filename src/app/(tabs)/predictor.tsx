@@ -52,6 +52,11 @@ const [submittedAt, setSubmittedAt] =
   const [predictionsLoaded, setPredictionsLoaded] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 const [cloudLoaded, setCloudLoaded] = useState(false);
+const [currentRank, setCurrentRank] =
+  useState<number | null>(null);
+
+const [leaderboardCount, setLeaderboardCount] =
+  useState(0);
 useEffect(() => {
   async function loadGames() {
     const { data, error } = await supabase
@@ -165,7 +170,45 @@ useEffect(() => {
     subscription.unsubscribe();
   };
 }, []);
+useEffect(() => {
+  async function loadRank() {
+    if (!user) {
+      setCurrentRank(null);
+      setLeaderboardCount(0);
+      return;
+    }
 
+    const { data, error } = await supabase.rpc(
+      'get_predictor_leaderboard',
+      {
+        target_season: '2026-27',
+      }
+    );
+
+    if (error) {
+      console.log(
+        'Could not load Predictor rank:',
+        error
+      );
+      return;
+    }
+
+    const leaderboard = data ?? [];
+
+    setLeaderboardCount(leaderboard.length);
+
+    const userIndex = leaderboard.findIndex(
+      (entry: { user_id: string }) =>
+        entry.user_id === user.id
+    );
+
+    setCurrentRank(
+      userIndex >= 0 ? userIndex + 1 : null
+    );
+  }
+
+  loadRank();
+}, [user, submittedAt, results]);
 useEffect(() => {
   async function loadPredictions() {
     try {
@@ -423,9 +466,9 @@ const formattedLockDate = lockAt
   gameId: number,
   prediction: Prediction
 ) {
-  if (isLocked || results[gameId]) {
-    return;
-  }
+if (isLocked || results[gameId]) {
+  return;
+}
 
   setPredictions((current) => ({
     ...current,
@@ -572,7 +615,7 @@ if (!gamesLoaded) {
             </View>
           </View>
         </View>
-{gradedPicks > 0 && (
+{gradedPicks > 0 && !isLocked && (
   <View style={styles.accuracyCard}>
     <View style={styles.accuracyHeader}>
       <View>
@@ -635,7 +678,10 @@ if (!gamesLoaded) {
     ›
   </Text>
 </Pressable>
+{!isLocked && (
+  <>
         {/* PROGRESS */}
+        
         <View style={styles.progressHeader}>
           <Text style={styles.progressText}>
             {predicted} of 82 games predicted
@@ -730,7 +776,83 @@ if (!gamesLoaded) {
     </Text>
   </Pressable>
 )}
+  </>
+)}
+{isLocked && (
+  <View style={styles.seasonStatusCard}>
+    <Text style={styles.seasonStatusEyebrow}>
+      SEASON PERFORMANCE
+    </Text>
 
+    {gradedPicks > 0 ? (
+      <>
+        <Text style={styles.seasonAccuracy}>
+          {accuracy}%
+        </Text>
+
+        <Text style={styles.seasonAccuracyLabel}>
+          PREDICTION ACCURACY
+        </Text>
+
+        <View style={styles.seasonStats}>
+          <View style={styles.seasonStat}>
+            <Text style={styles.correctNumber}>
+              {correctPicks}
+            </Text>
+            <Text style={styles.accuracyStatLabel}>
+              CORRECT
+            </Text>
+          </View>
+          <View style={styles.divider} />
+
+          <View style={styles.seasonStat}>
+            <Text style={styles.incorrectNumber}>
+              {incorrectPicks}
+            </Text>
+            <Text style={styles.accuracyStatLabel}>
+              INCORRECT
+            </Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.seasonStat}>
+            <Text style={styles.statNumber}>
+              {gradedPicks}
+            </Text>
+            <Text style={styles.accuracyStatLabel}>
+              GRADED
+            </Text>
+          </View>
+        </View>
+      </>
+    ) : (
+      <Text style={styles.waitingText}>
+        Results will appear here as games are completed.
+      </Text>
+    )}
+    {currentRank && (
+  <View style={styles.rankSummary}>
+    <View>
+      <Text style={styles.rankSummaryLabel}>
+        CURRENT RANK
+      </Text>
+
+      <Text style={styles.rankSummaryNumber}>
+        #{currentRank}
+      </Text>
+    </View>
+
+    <Text style={styles.rankSummaryTotal}>
+      of {leaderboardCount}{' '}
+      {leaderboardCount === 1
+        ? 'entry'
+        : 'entries'}
+    </Text>
+  </View>
+)}
+  </View>
+)}
 {/* SCHEDULE */}
 <View style={styles.gamesHeader}>
   <View>
@@ -843,6 +965,12 @@ const wasCorrect =
   {game.opponent}
 </Text>
 
+{isLocked && prediction && (
+  <Text style={styles.lockedPickText}>
+    YOUR PICK: {prediction}
+  </Text>
+)}
+
 {game.note && (
   <Text style={styles.gameNote}>
     {game.note}
@@ -875,10 +1003,12 @@ const wasCorrect =
                 <Pressable
 disabled={
   game.available === false || gameLocked
-}  style={[
+}
+ style={[
     styles.pickButton,
     prediction === 'W' && styles.winSelected,
-    (game.available === false || gameLocked) &&
+    (game.available === false ||
+  (gameLocked && prediction !== 'W')) &&
   styles.disabledPickButton,
   ]}
   onPress={() => makePrediction(game.id, 'W')}
@@ -900,7 +1030,8 @@ disabled={
 }  style={[
     styles.pickButton,
     prediction === 'L' && styles.lossSelected,
-    (game.available === false || gameLocked) &&
+   (game.available === false ||
+  (gameLocked && prediction !== 'L')) &&
   styles.disabledPickButton,
   ]}
   onPress={() => makePrediction(game.id, 'L')}
@@ -1067,7 +1198,13 @@ submitTitle: {
   fontWeight: '900',
   marginTop: 6,
 },
-
+lockedPickText: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+  marginTop: 6,
+},
 submitDescription: {
   color: '#8FA2B3',
   fontSize: 13,
@@ -1485,6 +1622,85 @@ scheduleActionText: {
   fontSize: 8,
   fontWeight: '900',
   letterSpacing: 0.7,
+},
+seasonStatusCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 18,
+  padding: 20,
+  marginTop: 16,
+  marginBottom: 18,
+},
+
+seasonStatusEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+seasonAccuracy: {
+  color: '#F3EFE3',
+  fontSize: 42,
+  fontWeight: '900',
+  marginTop: 5,
+},
+
+seasonAccuracyLabel: {
+  color: '#8FA2B3',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.2,
+},
+
+seasonStats: {
+  flexDirection: 'row',
+  borderTopWidth: 1,
+  borderTopColor: '#20354A',
+  marginTop: 16,
+  paddingTop: 16,
+},
+
+seasonStat: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+waitingText: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 8,
+},
+rankSummary: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'flex-end',
+  borderTopWidth: 1,
+  borderTopColor: '#20354A',
+  marginTop: 16,
+  paddingTop: 16,
+},
+
+rankSummaryLabel: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1.3,
+},
+
+rankSummaryNumber: {
+  color: '#F3EFE3',
+  fontSize: 28,
+  fontWeight: '900',
+  marginTop: 2,
+},
+
+rankSummaryTotal: {
+  color: '#8FA2B3',
+  fontSize: 11,
+  fontWeight: '700',
 },
   demoNote: {
     color: '#60778A',
