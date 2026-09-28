@@ -1,8 +1,12 @@
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { useLocalSearchParams } from 'expo-router';
+import {
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -39,22 +43,61 @@ type Poll = {
 };
 
 type FeedItem = Post | Poll;
+function formatFeedTime(createdAt: string) {
+  const created = new Date(createdAt);
+  const now = new Date();
 
+  const diffMs = now.getTime() - created.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMinutes < 1) {
+    return 'NOW';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours}h`;
+  }
+
+  if (diffDays === 1) {
+    return 'YESTERDAY';
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays}d`;
+  }
+
+  return created
+    .toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    .toUpperCase();
+}
 
 
 export default function DenScreen() {
   const params = useLocalSearchParams<{
   filter?: string;
 }>();
+const router = useRouter();
 const [databasePosts, setDatabasePosts] = useState<Post[]>([]);
 const [postsLoading, setPostsLoading] = useState(true);
 const [databasePolls, setDatabasePolls] = useState<Poll[]>([]);
+const [feedError, setFeedError] = useState(false);
+const [pollsLoading, setPollsLoading] = useState(true);
 const [user, setUser] = useState<User | null>(null);
 
 useEffect(() => {
   async function loadPosts() {
     try {
       setPostsLoading(true);
+      setFeedError(false);
 
       const { data, error } = await supabase
         .from('posts')
@@ -63,9 +106,10 @@ useEffect(() => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.log('Could not load Den posts:', error);
-        return;
-      }
+  console.log('Could not load Den posts:', error);
+  setFeedError(true);
+  return;
+}
 
       const formattedPosts: Post[] = (data ?? []).map(
         (post) => ({
@@ -74,7 +118,7 @@ useEffect(() => {
           category: post.category,
           text: post.content,
           likes: 0,
-          time: 'NEW',
+          time: formatFeedTime(post.created_at),
         })
       );
 
@@ -87,7 +131,10 @@ useEffect(() => {
   loadPosts();
 }, []);
   useEffect(() => {
-    async function loadPolls() {
+  async function loadPolls() {
+    try {
+      setPollsLoading(true);
+
       const { data: polls, error: pollsError } = await supabase
         .from('polls')
         .select('*')
@@ -95,9 +142,10 @@ useEffect(() => {
         .order('created_at', { ascending: false });
 
       if (pollsError) {
-        console.log('Could not load Den polls:', pollsError);
-        return;
-      }
+  console.log('Could not load Den polls:', pollsError);
+  setFeedError(true);
+  return;
+}
 
       const { data: options, error: optionsError } = await supabase
         .from('poll_options')
@@ -105,16 +153,17 @@ useEffect(() => {
         .order('sort_order', { ascending: true });
 
       if (optionsError) {
-        console.log('Could not load poll options:', optionsError);
-        return;
-      }
+  console.log('Could not load poll options:', optionsError);
+  setFeedError(true);
+  return;
+}
 
       const formattedPolls: Poll[] = (polls ?? []).map((poll) => ({
         id: poll.id,
         type: 'poll',
         category: poll.category,
         question: poll.question,
-        time: 'NEW',
+        time: formatFeedTime(poll.created_at),
 
         options: (options ?? [])
           .filter((option) => option.poll_id === poll.id)
@@ -126,15 +175,19 @@ useEffect(() => {
       }));
 
       setDatabasePolls(formattedPolls);
+          } finally {
+      setPollsLoading(false);
+    }
     }
 
     loadPolls();
   }, []);
   useEffect(() => {
-  async function loadVotes() {
-    if (!user) {
-  return;
-}
+async function loadVotes() {
+  if (!user) {
+    setPollVotes({});
+    return;
+  }
 
     const { data: votes, error } = await supabase
       .from('poll_votes')
@@ -199,10 +252,11 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  async function loadLikes() {
-    if (!user) {
-  return;
-}
+async function loadLikes() {
+  if (!user) {
+    setLikedPosts({});
+    return;
+  }
 
     const { data: likes, error } = await supabase
       .from('post_likes')
@@ -269,14 +323,35 @@ const visibleFeed = useMemo(() => {
   if (activeFilter === 'all') {
     return combinedFeed;
   }
-
   return combinedFeed.filter(
     (item) => item.category === activeFilter
   );
 }, [activeFilter, databasePosts, databasePolls]);
-
+const feedLoading =
+  postsLoading || pollsLoading;
+function promptSignIn() {
+  Alert.alert(
+    'Join the conversation',
+    'Sign in to like posts and vote in The Den.',
+    [
+      {
+        text: 'Not Now',
+        style: 'cancel',
+      },
+      {
+        text: 'Sign In',
+        onPress: () =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'login' },
+          }),
+      },
+    ]
+  );
+}
 async function toggleLike(postId: number) {
   if (!user) {
+    promptSignIn();
     return;
   }
 
@@ -330,8 +405,12 @@ async function toggleLike(postId: number) {
   );
 }
 
-async function vote(pollId: number, optionId: string) {
+async function vote(
+  pollId: number,
+  optionId: string
+) {
   if (!user) {
+    promptSignIn();
     return;
   }
 
@@ -455,7 +534,38 @@ async function vote(pollId: number, optionId: string) {
         </View>
 
         {/* FEED */}
-        {visibleFeed.map((item) => {
+{feedLoading ? (
+  <View style={styles.feedStatusCard}>
+    <Text style={styles.feedStatusText}>
+      Loading The Den...
+    </Text>
+  </View>
+) : feedError ? (
+  <View style={styles.feedStatusCard}>
+    <Text style={styles.feedStatusTitle}>
+      Couldn't load The Den
+    </Text>
+
+    <Text style={styles.feedStatusText}>
+      Something went wrong loading the community feed.
+    </Text>
+  </View>
+) : visibleFeed.length === 0 ? (
+  <View style={styles.feedStatusCard}>
+    <Text style={styles.feedStatusTitle}>
+      {activeFilter === 'pack'
+        ? 'Nothing from The Pack yet'
+        : activeFilter === 'cantina'
+          ? 'Nothing from The Cantina yet'
+          : 'Nothing in The Den yet'}
+    </Text>
+
+    <Text style={styles.feedStatusText}>
+      Check back soon for new discussions and polls.
+    </Text>
+  </View>
+) : (
+  visibleFeed.map((item) => {
           if (item.type === 'post') {
             const liked = !!likedPosts[item.id];
 
@@ -585,7 +695,8 @@ async function vote(pollId: number, optionId: string) {
               </Text>
             </View>
           );
-        })}
+          })
+)}
       </ScrollView>
     </SafeAreaView>
   );
@@ -647,13 +758,21 @@ function FeedHeader({
           </Text>
         </View>
 
-        {poll && (
-          <View style={styles.pollBadge}>
-            <Text style={styles.pollBadgeText}>
-              POLL
-            </Text>
-          </View>
-        )}
+        <View
+  style={[
+    styles.typeBadge,
+    poll && styles.pollBadge,
+  ]}
+>
+  <Text
+    style={[
+      styles.typeBadgeText,
+      poll && styles.pollBadgeText,
+    ]}
+  >
+    {poll ? 'POLL' : 'POST'}
+  </Text>
+</View>
       </View>
 
       <Text style={styles.time}>{time}</Text>
@@ -898,11 +1017,46 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+feedStatusCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 22,
+  alignItems: 'center',
+},
 
+feedStatusTitle: {
+  color: '#F3EFE3',
+  fontSize: 16,
+  fontWeight: '900',
+  textAlign: 'center',
+},
+
+feedStatusText: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  textAlign: 'center',
+  marginTop: 5,
+},
   voteCount: {
     color: '#60778A',
     fontSize: 11,
     fontWeight: '700',
     marginTop: 12,
   },
+  typeBadge: {
+  backgroundColor: '#24313D',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 5,
+},
+
+typeBadgeText: {
+  color: '#9DAFBD',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
 });

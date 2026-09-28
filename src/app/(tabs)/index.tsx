@@ -121,9 +121,7 @@ useEffect(() => {
       <>
         <Text style={styles.episodeMeta}>
           {latestEpisode.date}
-          {latestEpisode.duration
-            ? ` • ${latestEpisode.duration}`
-            : ''}
+
         </Text>
 
         <Text style={styles.episodeTitle}>

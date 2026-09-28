@@ -67,18 +67,15 @@ export function useEpisodes() {
             const title =
               item.title ?? 'Untitled Episode';
 
-            const links = episodeLinks.episodes.find(
-              (episode: {
-                match: string;
-                youtube: string;
-                spotify: string;
-              }) =>
-                title
-                  .toLowerCase()
-                  .includes(
-                    episode.match.toLowerCase()
-                  )
-            );
+           const links = episodeLinks.episodes.find(
+  (episode: {
+    match: string;
+    youtube: string;
+    spotify: string;
+  }) =>
+    title.trim().toLowerCase() ===
+    episode.match.trim().toLowerCase()
+);
 
             return {
               id:

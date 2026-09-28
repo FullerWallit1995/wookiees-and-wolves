@@ -1,5 +1,5 @@
 import { useEpisodes } from '@/hooks/useEpisodes';
-
+import { useState } from 'react';
 import {
   Image,
   Linking,
@@ -18,9 +18,15 @@ export default function EpisodesScreen() {
     loading,
     error,
   } = useEpisodes();
-
+const [visibleCount, setVisibleCount] = useState(10);
   const olderEpisodes = episodes.slice(1);
+const visibleEpisodes = olderEpisodes.slice(
+  0,
+  visibleCount
+);
 
+const hasMoreEpisodes =
+  visibleCount < olderEpisodes.length;
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -87,9 +93,7 @@ export default function EpisodesScreen() {
           <View style={styles.featuredContent}>
             <Text style={styles.episodeMeta}>
               {latestEpisode.date}
-              {latestEpisode.duration
-                ? ` • ${latestEpisode.duration}`
-                : ''}
+
             </Text>
 
             <Text style={styles.featuredTitle}>
@@ -141,36 +145,79 @@ export default function EpisodesScreen() {
           </Text>
         </View>
 
-        {olderEpisodes.map((episode) => (
-          <View
-            key={episode.id}
-            style={styles.episodeCard}
+        {visibleEpisodes.map((episode) => (
+  <View
+    key={episode.id}
+    style={styles.episodeCard}
+  >
+    <View style={styles.smallArtwork}>
+      <Image
+        source={require('../../../assets/wookiees-wolves-logo.png')}
+        style={styles.smallArtworkImage}
+        resizeMode="contain"
+      />
+    </View>
+
+    <View style={styles.episodeInfo}>
+      <Text style={styles.episodeMeta}>
+        {episode.date}
+
+      </Text>
+
+      <Text style={styles.episodeTitle}>
+        {episode.title}
+      </Text>
+
+      <View style={styles.smallActions}>
+        {episode.youtube && (
+          <Pressable
+            style={styles.smallActionButton}
+            onPress={() =>
+              Linking.openURL(episode.youtube!)
+            }
           >
-            <View style={styles.smallArtwork}>
-              <Image
-                source={require('../../../assets/wookiees-wolves-logo.png')}
-                style={styles.smallArtworkImage}
-                resizeMode="cover"
-              />
-            </View>
+            <Text style={styles.smallActionText}>
+              WATCH
+            </Text>
+          </Pressable>
+        )}
 
-            <View style={styles.episodeInfo}>
-              <Text style={styles.episodeMeta}>
-                {episode.date}
-                {episode.duration
-                  ? ` • ${episode.duration}`
-                  : ''}
-              </Text>
+        {episode.spotify && (
+          <Pressable
+            style={styles.smallActionButton}
+            onPress={() =>
+              Linking.openURL(episode.spotify!)
+            }
+          >
+            <Text style={styles.smallActionText}>
+              LISTEN
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  </View>
+))}
+{hasMoreEpisodes && (
+  <Pressable
+    style={styles.showMoreButton}
+    onPress={() =>
+      setVisibleCount((current) => current + 10)
+    }
+  >
+    <Text style={styles.showMoreText}>
+      SHOW MORE EPISODES
+    </Text>
 
-              <Text style={styles.episodeTitle}>
-                {episode.title}
-              </Text>
-            </View>
-
-            <Text style={styles.arrow}>›</Text>
-          </View>
-        ))}
-
+    <Text style={styles.showMoreCount}>
+      {Math.min(
+        olderEpisodes.length - visibleCount,
+        10
+      )}{' '}
+      MORE
+    </Text>
+  </Pressable>
+)}
         {/* FOLLOW */}
         <View style={styles.followCard}>
           <Text style={styles.followEyebrow}>
@@ -436,13 +483,55 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  showMoreButton: {
+  backgroundColor: '#162A3C',
+  borderWidth: 1,
+  borderColor: '#2C4A61',
+  borderRadius: 10,
+  paddingHorizontal: 15,
+  paddingVertical: 13,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginTop: 4,
+  marginBottom: 10,
+},
 
-  arrow: {
-    color: '#75C7F0',
-    fontSize: 28,
-    fontWeight: '300',
-    paddingRight: 3,
-  },
+showMoreText: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+showMoreCount: {
+  color: '#708599',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+smallActions: {
+  flexDirection: 'row',
+  gap: 7,
+  marginTop: 10,
+},
+
+smallActionButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 7,
+  paddingHorizontal: 10,
+  paddingVertical: 7,
+},
+
+smallActionText: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
 
   followCard: {
     backgroundColor: '#101D2B',
