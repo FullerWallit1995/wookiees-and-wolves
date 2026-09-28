@@ -1,4 +1,7 @@
-import { useMemo, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
+import { useEffect, useMemo, useState } from 'react';
 import {
     Pressable,
     ScrollView,
@@ -37,84 +40,203 @@ type Poll = {
 
 type FeedItem = Post | Poll;
 
-const feed: FeedItem[] = [
-  {
-    id: 1,
-    type: 'post',
-    category: 'pack',
-    text: 'Are the Wolves a 50-win team this season?',
-    likes: 24,
-    time: '2h',
-  },
-  {
-    id: 2,
-    type: 'poll',
-    category: 'cantina',
-    question: 'Which Star Wars era should the next movie explore?',
-    options: [
-      {
-        id: 'old-republic',
-        text: 'Old Republic',
-        votes: 52,
-      },
-      {
-        id: 'high-republic',
-        text: 'High Republic',
-        votes: 15,
-      },
-      {
-        id: 'post-ix',
-        text: 'Post-Episode IX',
-        votes: 44,
-      },
-      {
-        id: 'other',
-        text: 'Other',
-        votes: 16,
-      },
-    ],
-    time: '5h',
-  },
-  {
-    id: 3,
-    type: 'post',
-    category: 'pack',
-    text: 'New episode is live. We might have been a little too nice to Rudy...',
-    likes: 18,
-    time: '8h',
-  },
-  {
-    id: 4,
-    type: 'poll',
-    category: 'pack',
-    question: 'How many games will the Wolves win this season?',
-    options: [
-      {
-        id: 'under-45',
-        text: 'Under 45',
-        votes: 8,
-      },
-      {
-        id: '45-49',
-        text: '45–49',
-        votes: 21,
-      },
-      {
-        id: '50-54',
-        text: '50–54',
-        votes: 39,
-      },
-      {
-        id: '55-plus',
-        text: '55+',
-        votes: 17,
-      },
-    ],
-    time: '1d',
-  },
-];
+
 
 export default function DenScreen() {
+const [databasePosts, setDatabasePosts] = useState<Post[]>([]);
+const [postsLoading, setPostsLoading] = useState(true);
+const [databasePolls, setDatabasePolls] = useState<Poll[]>([]);
+const [deviceId, setDeviceId] = useState<string | null>(null);
+useEffect(() => {
+  async function loadDeviceId() {
+    try {
+      const existingId = await AsyncStorage.getItem(
+        'wookiees-wolves-device-id'
+      );
+
+      if (existingId) {
+        setDeviceId(existingId);
+        return;
+      }
+
+      const newId = Crypto.randomUUID();
+
+      await AsyncStorage.setItem(
+        'wookiees-wolves-device-id',
+        newId
+      );
+
+      setDeviceId(newId);
+    } catch (error) {
+      console.log('Could not create device ID:', error);
+    }
+  }
+
+  loadDeviceId();
+}, []);
+useEffect(() => {
+  async function loadPosts() {
+    try {
+      setPostsLoading(true);
+
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.log('Could not load Den posts:', error);
+        return;
+      }
+
+      const formattedPosts: Post[] = (data ?? []).map(
+        (post) => ({
+          id: post.id,
+          type: 'post',
+          category: post.category,
+          text: post.content,
+          likes: 0,
+          time: 'NEW',
+        })
+      );
+
+      setDatabasePosts(formattedPosts);
+    } finally {
+      setPostsLoading(false);
+    }
+  }
+
+  loadPosts();
+}, []);
+  useEffect(() => {
+    async function loadPolls() {
+      const { data: polls, error: pollsError } = await supabase
+        .from('polls')
+        .select('*')
+        .eq('published', true)
+        .order('created_at', { ascending: false });
+
+      if (pollsError) {
+        console.log('Could not load Den polls:', pollsError);
+        return;
+      }
+
+      const { data: options, error: optionsError } = await supabase
+        .from('poll_options')
+        .select('*')
+        .order('sort_order', { ascending: true });
+
+      if (optionsError) {
+        console.log('Could not load poll options:', optionsError);
+        return;
+      }
+
+      const formattedPolls: Poll[] = (polls ?? []).map((poll) => ({
+        id: poll.id,
+        type: 'poll',
+        category: poll.category,
+        question: poll.question,
+        time: 'NEW',
+
+        options: (options ?? [])
+          .filter((option) => option.poll_id === poll.id)
+          .map((option) => ({
+            id: String(option.id),
+            text: option.option_text,
+            votes: 0,
+          })),
+      }));
+
+      setDatabasePolls(formattedPolls);
+    }
+
+    loadPolls();
+  }, []);
+  useEffect(() => {
+  async function loadVotes() {
+    if (!deviceId) {
+      return;
+    }
+
+    const { data: votes, error } = await supabase
+      .from('poll_votes')
+      .select('*');
+
+    if (error) {
+      console.log('Could not load poll votes:', error);
+      return;
+    }
+
+    const voteCounts: Record<string, number> = {};
+    const myVotes: Record<number, string> = {};
+
+    (votes ?? []).forEach((vote) => {
+      const optionId = String(vote.option_id);
+
+      voteCounts[optionId] =
+        (voteCounts[optionId] ?? 0) + 1;
+
+      if (vote.device_id === deviceId) {
+        myVotes[vote.poll_id] = optionId;
+      }
+    });
+
+    setPollVotes(myVotes);
+
+    setDatabasePolls((currentPolls) =>
+      currentPolls.map((poll) => ({
+        ...poll,
+        options: poll.options.map((option) => ({
+          ...option,
+          votes: voteCounts[option.id] ?? 0,
+        })),
+      }))
+    );
+  }
+
+  loadVotes();
+}, [deviceId, databasePolls.length]);
+
+useEffect(() => {
+  async function loadLikes() {
+    if (!deviceId) {
+      return;
+    }
+
+    const { data: likes, error } = await supabase
+      .from('post_likes')
+      .select('*');
+
+    if (error) {
+      console.log('Could not load post likes:', error);
+      return;
+    }
+
+    const likeCounts: Record<number, number> = {};
+    const myLikes: Record<number, boolean> = {};
+
+    (likes ?? []).forEach((like) => {
+      likeCounts[like.post_id] =
+        (likeCounts[like.post_id] ?? 0) + 1;
+
+      if (like.device_id === deviceId) {
+        myLikes[like.post_id] = true;
+      }
+    });
+
+    setLikedPosts(myLikes);
+
+    setDatabasePosts((currentPosts) =>
+      currentPosts.map((post) => ({
+        ...post,
+        likes: likeCounts[post.id] ?? 0,
+      }))
+    );
+  }
+
+  loadLikes();
+}, [deviceId, databasePosts.length]);
   const [activeFilter, setActiveFilter] =
     useState<Filter>('all');
 
@@ -124,29 +246,143 @@ export default function DenScreen() {
   const [pollVotes, setPollVotes] =
     useState<Record<number, string>>({});
 
-  const visibleFeed = useMemo(() => {
-    if (activeFilter === 'all') {
-      return feed;
+const combinedFeed: FeedItem[] = [
+  ...databasePosts,
+  ...databasePolls,
+];
+
+const visibleFeed = useMemo(() => {
+  if (activeFilter === 'all') {
+    return combinedFeed;
+  }
+
+  return combinedFeed.filter(
+    (item) => item.category === activeFilter
+  );
+}, [activeFilter, databasePosts, databasePolls]);
+
+async function toggleLike(postId: number) {
+  if (!deviceId) {
+    return;
+  }
+
+  const alreadyLiked = !!likedPosts[postId];
+
+  if (alreadyLiked) {
+    const { error } = await supabase
+      .from('post_likes')
+      .delete()
+      .eq('post_id', postId)
+      .eq('device_id', deviceId);
+
+    if (error) {
+      console.log('Could not remove like:', error);
+      return;
+    }
+  } else {
+    const { error } = await supabase
+      .from('post_likes')
+      .insert({
+        post_id: postId,
+        device_id: deviceId,
+      });
+
+    if (error) {
+      console.log('Could not add like:', error);
+      return;
+    }
+  }
+
+  setLikedPosts((current) => ({
+    ...current,
+    [postId]: !alreadyLiked,
+  }));
+
+  setDatabasePosts((currentPosts) =>
+    currentPosts.map((post) => {
+      if (post.id !== postId) {
+        return post;
+      }
+
+      return {
+        ...post,
+        likes: Math.max(
+          0,
+          post.likes + (alreadyLiked ? -1 : 1)
+        ),
+      };
+    })
+  );
+}
+
+async function vote(pollId: number, optionId: string) {
+
+  if (!deviceId) {
+    console.log('NO DEVICE ID YET');
+    return;
+  }
+
+  const numericOptionId = Number(optionId);
+
+  const { error } = await supabase
+    .from('poll_votes')
+    .upsert(
+      {
+        poll_id: pollId,
+        option_id: numericOptionId,
+        device_id: deviceId,
+      },
+      {
+        onConflict: 'poll_id,device_id',
+      }
+    );
+
+
+  if (error) {
+    console.log('Could not save vote:', error);
+    return;
+  }
+
+const previousOptionId = pollVotes[pollId];
+
+setPollVotes((current) => ({
+  ...current,
+  [pollId]: optionId,
+}));
+
+setDatabasePolls((currentPolls) =>
+  currentPolls.map((poll) => {
+    if (poll.id !== pollId) {
+      return poll;
     }
 
-    return feed.filter(
-      (item) => item.category === activeFilter
-    );
-  }, [activeFilter]);
+    return {
+      ...poll,
+      options: poll.options.map((option) => {
+        let newVoteCount = option.votes;
 
-  function toggleLike(postId: number) {
-    setLikedPosts((current) => ({
-      ...current,
-      [postId]: !current[postId],
-    }));
-  }
+        if (
+          previousOptionId &&
+          option.id === previousOptionId
+        ) {
+          newVoteCount -= 1;
+        }
 
-  function vote(pollId: number, optionId: string) {
-    setPollVotes((current) => ({
-      ...current,
-      [pollId]: optionId,
-    }));
-  }
+        if (option.id === optionId) {
+          newVoteCount += 1;
+        }
+
+        return {
+          ...option,
+          votes: Math.max(0, newVoteCount),
+        };
+      }),
+    };
+  })
+);
+}
+
+  
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -189,8 +425,8 @@ export default function DenScreen() {
             const liked = !!likedPosts[item.id];
 
             return (
-              <View key={item.id} style={styles.card}>
-                <FeedHeader
+<View key={`post-${item.id}`} style={styles.card}>              
+      <FeedHeader
                   category={item.category}
                   time={item.time}
                 />
@@ -222,8 +458,7 @@ export default function DenScreen() {
                         liked && styles.likeTextActive,
                       ]}
                     >
-                      {item.likes + (liked ? 1 : 0)}
-                    </Text>
+{item.likes}                    </Text>
                   </Pressable>
                 </View>
               </View>
@@ -233,18 +468,18 @@ export default function DenScreen() {
           const selectedOption = pollVotes[item.id];
 
           const totalVotes =
-            item.options.reduce(
-              (total, option) => total + option.votes,
-              0
-            ) + (selectedOption ? 1 : 0);
+  item.options.reduce(
+    (total, option) => total + option.votes,
+    0
+  );
 
           return (
-            <View key={item.id} style={styles.card}>
-              <FeedHeader
-                category={item.category}
-                time={item.time}
-                poll
-              />
+  <View key={`poll-${item.id}`} style={styles.card}>
+    <FeedHeader
+      category={item.category}
+      time={item.time}
+      poll
+    />
 
               <Text style={styles.pollQuestion}>
                 {item.question}
@@ -255,8 +490,7 @@ export default function DenScreen() {
                   const selected =
                     selectedOption === option.id;
 
-                  const displayVotes =
-                    option.votes + (selected ? 1 : 0);
+                  const displayVotes = option.votes;
 
                   const percentage =
                     totalVotes > 0
@@ -273,9 +507,9 @@ export default function DenScreen() {
                         selected &&
                           styles.pollOptionSelected,
                       ]}
-                      onPress={() =>
-                        vote(item.id, option.id)
-                      }
+                      onPress={() => {
+  vote(item.id, option.id);
+}}
                     >
                       <View
                         style={[
