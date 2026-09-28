@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@supabase/supabase-js';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
@@ -23,591 +24,7 @@ type Game = {
   note?: string;
 };
 
-const games: Game[] = [
- {
-  id: 1,
-  date: 'OCT 21',
-  opponent: 'Miami Heat',
-  location: 'AWAY',
-  month: 'OCTOBER',
-},
-{
-  id: 2,
-  date: 'OCT 23',
-  opponent: 'Orlando Magic',
-  location: 'AWAY',
-  month: 'OCTOBER',
-},
-{
-  id: 3,
-  date: 'OCT 25',
-  opponent: 'Toronto Raptors',
-  location: 'HOME',
-  month: 'OCTOBER',
-},
-{
-  id: 4,
-  date: 'OCT 26',
-  opponent: 'Cleveland Cavaliers',
-  location: 'AWAY',
-  month: 'OCTOBER',
-},
-{
-  id: 5,
-  date: 'OCT 28',
-  opponent: 'Golden State Warriors',
-  location: 'HOME',
-  month: 'OCTOBER',
-},
-{
-  id: 6,
-  date: 'OCT 30',
-  opponent: 'LA Clippers',
-  location: 'HOME',
-  month: 'OCTOBER',
-},
-{
-  id: 7,
-  date: 'OCT 31',
-  opponent: 'San Antonio Spurs',
-  location: 'AWAY',
-  month: 'OCTOBER',
-},
-{
-  id: 8,
-  date: 'NOV 2',
-  opponent: 'Milwaukee Bucks',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 9,
-  date: 'NOV 4',
-  opponent: 'Houston Rockets',
-  location: 'AWAY',
-  month: 'NOVEMBER',
-},
-{
-  id: 10,
-  date: 'NOV 6',
-  opponent: 'New Orleans Pelicans',
-  location: 'AWAY',
-  month: 'NOVEMBER',
-},
-{
-  id: 11,
-  date: 'NOV 8',
-  opponent: 'Utah Jazz',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 12,
-  date: 'NOV 12',
-  opponent: 'Dallas Mavericks',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 13,
-  date: 'NOV 14',
-  opponent: 'Chicago Bulls',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 14,
-  date: 'NOV 16',
-  opponent: 'Portland Trail Blazers',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 15,
-  date: 'NOV 17',
-  opponent: 'Portland Trail Blazers',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 16,
-  date: 'NOV 19',
-  opponent: 'New York Knicks',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 17,
-  date: 'NOV 21',
-  opponent: 'Memphis Grizzlies',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 18,
-  date: 'NOV 23',
-  opponent: 'Brooklyn Nets',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 19,
-  date: 'NOV 25',
-  opponent: 'Oklahoma City Thunder',
-  location: 'AWAY',
-  month: 'NOVEMBER',
-},
-{
-  id: 20,
-  date: 'NOV 27',
-  opponent: 'Memphis Grizzlies',
-  location: 'HOME',
-  month: 'NOVEMBER',
-},
-{
-  id: 21,
-  date: 'NOV 29',
-  opponent: 'Sacramento Kings',
-  location: 'AWAY',
-  month: 'NOVEMBER',
-},
-{
-  id: 22,
-  date: 'DEC 1',
-  opponent: 'Portland Trail Blazers',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 23,
-  date: 'DEC 2',
-  opponent: 'LA Clippers',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 24,
-  date: 'DEC TBD',
-  opponent: 'Opponent TBD',
-  month: 'DECEMBER',
-  available: false,
-  note: 'NBA Cup scheduling window',
-},
-{
-  id: 25,
-  date: 'DEC TBD',
-  opponent: 'Opponent TBD',
-  month: 'DECEMBER',
-  available: false,
-  note: 'NBA Cup scheduling window',
-},
-{
-  id: 26,
-  date: 'DEC 12',
-  opponent: 'Phoenix Suns',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 27,
-  date: 'DEC 14',
-  opponent: 'Utah Jazz',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 28,
-  date: 'DEC 16',
-  opponent: 'Los Angeles Lakers',
-  location: 'HOME',
-  month: 'DECEMBER',
-},
-{
-  id: 29,
-  date: 'DEC 18',
-  opponent: 'Los Angeles Lakers',
-  location: 'HOME',
-  month: 'DECEMBER',
-},
-{
-  id: 30,
-  date: 'DEC 21',
-  opponent: 'Phoenix Suns',
-  location: 'HOME',
-  month: 'DECEMBER',
-},
-{
-  id: 31,
-  date: 'DEC 23',
-  opponent: 'Milwaukee Bucks',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 32,
-  date: 'DEC 25',
-  opponent: 'Oklahoma City Thunder',
-  location: 'HOME',
-  month: 'DECEMBER',
-},
-{
-  id: 33,
-  date: 'DEC 27',
-  opponent: 'Golden State Warriors',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 34,
-  date: 'DEC 28',
-  opponent: 'Denver Nuggets',
-  location: 'AWAY',
-  month: 'DECEMBER',
-},
-{
-  id: 35,
-  date: 'DEC 31',
-  opponent: 'Denver Nuggets',
-  location: 'HOME',
-  month: 'DECEMBER',
-},
-// JANUARY
-{
-  id: 36,
-  date: 'JAN 2',
-  opponent: 'Indiana Pacers',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 37,
-  date: 'JAN 3',
-  opponent: 'San Antonio Spurs',
-  location: 'HOME',
-  month: 'JANUARY',
-},
-{
-  id: 38,
-  date: 'JAN 5',
-  opponent: 'Houston Rockets',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 39,
-  date: 'JAN 7',
-  opponent: 'Toronto Raptors',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 40,
-  date: 'JAN 8',
-  opponent: 'Washington Wizards',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 41,
-  date: 'JAN 11',
-  opponent: 'Cleveland Cavaliers',
-  location: 'HOME',
-  month: 'JANUARY',
-},
-{
-  id: 42,
-  date: 'JAN 14',
-  opponent: 'Chicago Bulls',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 43,
-  date: 'JAN 16',
-  opponent: 'Philadelphia 76ers',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 44,
-  date: 'JAN 18',
-  opponent: 'New York Knicks',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 45,
-  date: 'JAN 20',
-  opponent: 'Houston Rockets',
-  location: 'HOME',
-  month: 'JANUARY',
-},
-{
-  id: 46,
-  date: 'JAN 22',
-  opponent: 'San Antonio Spurs',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 47,
-  date: 'JAN 24',
-  opponent: 'Detroit Pistons',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 48,
-  date: 'JAN 25',
-  opponent: 'Memphis Grizzlies',
-  location: 'AWAY',
-  month: 'JANUARY',
-},
-{
-  id: 49,
-  date: 'JAN 27',
-  opponent: 'Denver Nuggets',
-  location: 'HOME',
-  month: 'JANUARY',
-},
-{
-  id: 50,
-  date: 'JAN 29',
-  opponent: 'Charlotte Hornets',
-  location: 'HOME',
-  month: 'JANUARY',
-},
-{
-  id: 51,
-  date: 'JAN 31',
-  opponent: 'Phoenix Suns',
-  location: 'HOME',
-  month: 'JANUARY',
-},
 
-// FEBRUARY
-{
-  id: 52,
-  date: 'FEB 2',
-  opponent: 'Portland Trail Blazers',
-  location: 'AWAY',
-  month: 'FEBRUARY',
-},
-{
-  id: 53,
-  date: 'FEB 4',
-  opponent: 'Sacramento Kings',
-  location: 'AWAY',
-  month: 'FEBRUARY',
-},
-{
-  id: 54,
-  date: 'FEB 6',
-  opponent: 'Miami Heat',
-  location: 'HOME',
-  month: 'FEBRUARY',
-},
-{
-  id: 55,
-  date: 'FEB 7',
-  opponent: 'Utah Jazz',
-  location: 'HOME',
-  month: 'FEBRUARY',
-},
-{
-  id: 56,
-  date: 'FEB 9',
-  opponent: 'Brooklyn Nets',
-  location: 'AWAY',
-  month: 'FEBRUARY',
-},
-{
-  id: 57,
-  date: 'FEB 12',
-  opponent: 'Boston Celtics',
-  location: 'AWAY',
-  month: 'FEBRUARY',
-},
-{
-  id: 58,
-  date: 'FEB 15',
-  opponent: 'Charlotte Hornets',
-  location: 'AWAY',
-  month: 'FEBRUARY',
-},
-{
-  id: 59,
-  date: 'FEB 18',
-  opponent: 'San Antonio Spurs',
-  location: 'HOME',
-  month: 'FEBRUARY',
-},
-{
-  id: 60,
-  date: 'FEB 26',
-  opponent: 'Indiana Pacers',
-  location: 'HOME',
-  month: 'FEBRUARY',
-},
-{
-  id: 61,
-  date: 'FEB 28',
-  opponent: 'Boston Celtics',
-  location: 'HOME',
-  month: 'FEBRUARY',
-},
-
-// MARCH
-{
-  id: 62,
-  date: 'MAR 2',
-  opponent: 'Oklahoma City Thunder',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 63,
-  date: 'MAR 5',
-  opponent: 'Phoenix Suns',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 64,
-  date: 'MAR 7',
-  opponent: 'Denver Nuggets',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 65,
-  date: 'MAR 8',
-  opponent: 'New Orleans Pelicans',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 66,
-  date: 'MAR 10',
-  opponent: 'Atlanta Hawks',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 67,
-  date: 'MAR 13',
-  opponent: 'Philadelphia 76ers',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 68,
-  date: 'MAR 14',
-  opponent: 'Washington Wizards',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 69,
-  date: 'MAR 16',
-  opponent: 'New Orleans Pelicans',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 70,
-  date: 'MAR 18',
-  opponent: 'Utah Jazz',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 71,
-  date: 'MAR 22',
-  opponent: 'Detroit Pistons',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 72,
-  date: 'MAR 24',
-  opponent: 'Dallas Mavericks',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 73,
-  date: 'MAR 26',
-  opponent: 'Orlando Magic',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 74,
-  date: 'MAR 28',
-  opponent: 'Oklahoma City Thunder',
-  location: 'HOME',
-  month: 'MARCH',
-},
-{
-  id: 75,
-  date: 'MAR 29',
-  opponent: 'Atlanta Hawks',
-  location: 'AWAY',
-  month: 'MARCH',
-},
-{
-  id: 76,
-  date: 'MAR 31',
-  opponent: 'Sacramento Kings',
-  location: 'HOME',
-  month: 'MARCH',
-},
-
-// APRIL
-{
-  id: 77,
-  date: 'APR 2',
-  opponent: 'Golden State Warriors',
-  location: 'HOME',
-  month: 'APRIL',
-},
-{
-  id: 78,
-  date: 'APR 4',
-  opponent: 'Dallas Mavericks',
-  location: 'AWAY',
-  month: 'APRIL',
-},
-{
-  id: 79,
-  date: 'APR 6',
-  opponent: 'LA Clippers',
-  location: 'AWAY',
-  month: 'APRIL',
-},
-{
-  id: 80,
-  date: 'APR 7',
-  opponent: 'Los Angeles Lakers',
-  location: 'AWAY',
-  month: 'APRIL',
-},
-{
-  id: 81,
-  date: 'APR 9',
-  opponent: 'Los Angeles Lakers',
-  location: 'AWAY',
-  month: 'APRIL',
-},
-{
-  id: 82,
-  date: 'APR 11',
-  opponent: 'Houston Rockets',
-  location: 'HOME',
-  month: 'APRIL',
-}
-];
 const months = [
   'OCTOBER',
   'NOVEMBER',
@@ -619,12 +36,113 @@ const months = [
 ];
 
 export default function PredictorScreen() {
+  const router = useRouter();
+const [games, setGames] = useState<Game[]>([]);
+const [gamesLoaded, setGamesLoaded] = useState(false);
+const [results, setResults] = useState<
+  Record<number, Prediction>
+>({});
+const [lockAt, setLockAt] = useState<string | null>(null);
+const [seasonLoaded, setSeasonLoaded] = useState(false);
+const [submittedAt, setSubmittedAt] =
+  useState<string | null>(null);
   const [predictions, setPredictions] = useState<
     Record<number, Prediction>
   >({});
   const [predictionsLoaded, setPredictionsLoaded] = useState(false);
   const [user, setUser] = useState<User | null>(null);
 const [cloudLoaded, setCloudLoaded] = useState(false);
+useEffect(() => {
+  async function loadGames() {
+    const { data, error } = await supabase
+      .from('predictor_games')
+      .select('*')
+      .eq('season', '2026-27')
+      .order('sort_order', { ascending: true });
+
+    if (error) {
+      console.log(
+        'Could not load Predictor schedule:',
+        error
+      );
+
+      setGamesLoaded(true);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const formattedGames: Game[] = data.map((game) => ({
+        id: game.game_id,
+        date: game.game_date,
+        opponent: game.opponent,
+        location: game.location ?? undefined,
+        month: game.month,
+        available: game.available,
+                note: game.note ?? undefined,
+      }));
+
+      setGames(formattedGames);
+    }
+
+    setGamesLoaded(true);
+  }
+
+  loadGames();
+}, []);
+useEffect(() => {
+  async function loadResults() {
+    const { data, error } = await supabase
+      .from('predictor_results')
+      .select('game_id, result, final')
+      .eq('season', '2026-27')
+      .eq('final', true);
+
+    if (error) {
+      console.log(
+        'Could not load Predictor results:',
+        error
+      );
+      return;
+    }
+
+    const formattedResults: Record<number, Prediction> = {};
+
+    (data ?? []).forEach((row) => {
+      if (row.result === 'W' || row.result === 'L') {
+        formattedResults[row.game_id] = row.result;
+      }
+    });
+
+    setResults(formattedResults);
+  }
+
+  loadResults();
+}, []);
+useEffect(() => {
+  async function loadSeason() {
+    const { data, error } = await supabase
+      .from('predictor_seasons')
+      .select('lock_at')
+      .eq('season', '2026-27')
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (error) {
+      console.log(
+        'Could not load Predictor season:',
+        error
+      );
+
+      setSeasonLoaded(true);
+      return;
+    }
+
+    setLockAt(data?.lock_at ?? null);
+    setSeasonLoaded(true);
+  }
+
+  loadSeason();
+}, []);
 useEffect(() => {
   async function loadUser() {
     const {
@@ -647,6 +165,7 @@ useEffect(() => {
     subscription.unsubscribe();
   };
 }, []);
+
 useEffect(() => {
   async function loadPredictions() {
     try {
@@ -674,7 +193,7 @@ useEffect(() => {
 
     const { data: cloudData, error } = await supabase
       .from('predictor_predictions')
-      .select('predictions')
+      .select('predictions, submitted_at')
       .eq('user_id', user.id)
       .eq('season', '2026-27')
       .maybeSingle();
@@ -686,7 +205,7 @@ useEffect(() => {
       );
       return;
     }
-
+setSubmittedAt(cloudData?.submitted_at ?? null);
     if (cloudData?.predictions) {
       const cloudPredictions =
         cloudData.predictions as Record<number, Prediction>;
@@ -803,6 +322,25 @@ function toggleMonth(month: string) {
       ).length,
     [predictions]
   );
+  function expandAllMonths() {
+  const expanded: Record<string, boolean> = {};
+
+  months.forEach((month) => {
+    expanded[month] = true;
+  });
+
+  setExpandedMonths(expanded);
+}
+
+function collapseAllMonths() {
+  const collapsed: Record<string, boolean> = {};
+
+  months.forEach((month) => {
+    collapsed[month] = false;
+  });
+
+  setExpandedMonths(collapsed);
+}
 function getMonthStats(month: string) {
   const monthGames = games.filter(
     (game) => game.month === month
@@ -835,13 +373,102 @@ return {
 
   const predicted = wins + losses;
   const remaining = 82 - predicted;
+  const gradedGameIds = Object.keys(results).map(Number);
 
-  function makePrediction(gameId: number, prediction: Prediction) {
-    setPredictions((current) => ({
-      ...current,
-      [gameId]: prediction,
-    }));
+const correctPicks = gradedGameIds.filter(
+  (gameId) =>
+    predictions[gameId] &&
+    predictions[gameId] === results[gameId]
+).length;
+
+const incorrectPicks = gradedGameIds.filter(
+  (gameId) =>
+    predictions[gameId] &&
+    predictions[gameId] !== results[gameId]
+).length;
+
+const gradedPicks = correctPicks + incorrectPicks;
+
+const accuracy =
+  gradedPicks > 0
+    ? Math.round((correctPicks / gradedPicks) * 1000) / 10
+    : 0;
+  const availableGames = games.filter(
+  (game) => game.available !== false
+);
+
+const availableGameCount = availableGames.length;
+
+const availablePredictedCount = availableGames.filter(
+  (game) => !!predictions[game.id]
+).length;
+
+const readyToSubmit =
+  availableGameCount > 0 &&
+  availablePredictedCount === availableGameCount;
+  const isLocked =
+  !!lockAt && new Date() >= new Date(lockAt);
+
+const formattedLockDate = lockAt
+  ? new Date(lockAt).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    })
+  : null;
+
+ function makePrediction(
+  gameId: number,
+  prediction: Prediction
+) {
+  if (isLocked || results[gameId]) {
+    return;
   }
+
+  setPredictions((current) => ({
+    ...current,
+    [gameId]: prediction,
+  }));
+}
+  async function submitPredictions() {
+  if (!user || isLocked || !readyToSubmit) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from('predictor_predictions')
+    .upsert(
+      {
+        user_id: user.id,
+        season: '2026-27',
+        predictions,
+        submitted_at: now,
+        updated_at: now,
+      },
+      {
+        onConflict: 'user_id,season',
+      }
+    );
+
+  if (error) {
+    Alert.alert(
+      'Could not submit picks',
+      error.message
+    );
+    return;
+  }
+
+  setSubmittedAt(now);
+
+  Alert.alert(
+    'Picks submitted',
+    'Your predictions are in. You can still make changes and resubmit until the deadline.'
+  );
+}
   function resetPredictions() {
   Alert.alert(
     'Reset all predictions?',
@@ -869,7 +496,17 @@ return {
     ]
   );
 }
-
+if (!gamesLoaded) {
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>
+          Loading schedule...
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -883,7 +520,27 @@ return {
         <Text style={styles.subtitle}>
           Pick every game and build your predicted Wolves record.
         </Text>
+      <View
+  style={[
+    styles.deadlineCard,
+    isLocked && styles.deadlineCardLocked,
+  ]}
+>
+  <Text style={styles.deadlineLabel}>
+    {isLocked ? 'PICKS LOCKED' : 'PICKS LOCK'}
+  </Text>
 
+  <Text style={styles.deadlineText}>
+    {formattedLockDate ??
+      'Deadline information unavailable'}
+  </Text>
+
+  {!isLocked && (
+    <Text style={styles.deadlineNote}>
+      You can change your predictions until the deadline.
+    </Text>
+  )}
+</View>
         {/* RECORD */}
         <View style={styles.recordCard}>
           <Text style={styles.recordLabel}>
@@ -915,7 +572,69 @@ return {
             </View>
           </View>
         </View>
+{gradedPicks > 0 && (
+  <View style={styles.accuracyCard}>
+    <View style={styles.accuracyHeader}>
+      <View>
+        <Text style={styles.accuracyEyebrow}>
+          PREDICTION ACCURACY
+        </Text>
 
+        <Text style={styles.accuracyNumber}>
+          {accuracy}%
+        </Text>
+      </View>
+
+      <View style={styles.gradedBadge}>
+        <Text style={styles.gradedBadgeText}>
+          {gradedPicks} GRADED
+        </Text>
+      </View>
+    </View>
+
+    <View style={styles.accuracyStats}>
+      <View style={styles.accuracyStat}>
+        <Text style={styles.correctNumber}>
+          {correctPicks}
+        </Text>
+
+        <Text style={styles.accuracyStatLabel}>
+          CORRECT
+        </Text>
+      </View>
+
+      <View style={styles.divider} />
+
+      <View style={styles.accuracyStat}>
+        <Text style={styles.incorrectNumber}>
+          {incorrectPicks}
+        </Text>
+
+        <Text style={styles.accuracyStatLabel}>
+          INCORRECT
+        </Text>
+      </View>
+    </View>
+  </View>
+)}
+<Pressable
+  style={styles.leaderboardButton}
+  onPress={() => router.push('/leaderboard')}
+>
+  <View>
+    <Text style={styles.leaderboardEyebrow}>
+      COMMUNITY
+    </Text>
+
+    <Text style={styles.leaderboardTitle}>
+      Predictor Leaderboard
+    </Text>
+  </View>
+
+  <Text style={styles.leaderboardArrow}>
+    ›
+  </Text>
+</Pressable>
         {/* PROGRESS */}
         <View style={styles.progressHeader}>
           <Text style={styles.progressText}>
@@ -935,7 +654,73 @@ return {
             ]}
           />
         </View>
+        <View style={styles.submitCard}>
+  {isLocked ? (
+    <>
+      <Text style={styles.submitStatus}>
+        PICKS LOCKED
+      </Text>
+
+      <Text style={styles.submitTitle}>
+        {wins}–{losses}
+      </Text>
+
+      <Text style={styles.submitDescription}>
+        Your 2026–27 predictions are locked.
+      </Text>
+    </>
+  ) : submittedAt ? (
+    <>
+      <Text style={styles.submitStatus}>
+        ✓ PICKS SUBMITTED
+      </Text>
+
+      <Text style={styles.submitDescription}>
+        You can still change your picks and resubmit
+        before the deadline.
+      </Text>
+
+      <Pressable
+        style={styles.submitButton}
+        onPress={submitPredictions}
+        disabled={!readyToSubmit}
+      >
+        <Text style={styles.submitButtonText}>
+          RESUBMIT PICKS
+        </Text>
+      </Pressable>
+    </>
+  ) : (
+    <>
+      <Text style={styles.submitStatus}>
+        {readyToSubmit
+          ? 'READY TO SUBMIT'
+          : 'COMPLETE YOUR PICKS'}
+      </Text>
+
+      <Text style={styles.submitDescription}>
+        {availablePredictedCount} of {availableGameCount}{' '}
+        available games picked
+      </Text>
+
+      <Pressable
+        style={[
+          styles.submitButton,
+          !readyToSubmit &&
+            styles.submitButtonDisabled,
+        ]}
+        onPress={submitPredictions}
+        disabled={!readyToSubmit}
+      >
+        <Text style={styles.submitButtonText}>
+          SUBMIT PICKS
+        </Text>
+      </Pressable>
+    </>
+  )}
+</View>
         {predicted > 0 && (
+  
   <Pressable
     style={styles.resetButton}
     onPress={resetPredictions}
@@ -948,8 +733,35 @@ return {
 
 {/* SCHEDULE */}
 <View style={styles.gamesHeader}>
-  <Text style={styles.sectionTitle}>Schedule</Text>
-  <Text style={styles.gameCount}>82 GAMES</Text>
+  <View>
+    <Text style={styles.sectionTitle}>
+      Schedule
+    </Text>
+
+    <Text style={styles.gameCount}>
+      82 GAMES
+    </Text>
+  </View>
+
+  <View style={styles.scheduleActions}>
+    <Pressable
+      style={styles.scheduleActionButton}
+      onPress={expandAllMonths}
+    >
+      <Text style={styles.scheduleActionText}>
+        EXPAND ALL
+      </Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.scheduleActionButton}
+      onPress={collapseAllMonths}
+    >
+      <Text style={styles.scheduleActionText}>
+        COLLAPSE ALL
+      </Text>
+    </Pressable>
+  </View>
 </View>
 
 {months.map((month) => {
@@ -992,6 +804,14 @@ return {
       {expanded &&
         monthStats.games.map((game) => {
           const prediction = predictions[game.id];
+          const actualResult = results[game.id];
+
+const wasCorrect =
+  actualResult &&
+  prediction &&
+  actualResult === prediction;
+  const gameLocked =
+  isLocked || !!actualResult;
 
           return (
             <View key={game.id} style={styles.gameCard}>
@@ -1028,15 +848,38 @@ return {
     {game.note}
   </Text>
 )}
+
+{actualResult && (
+  <View style={styles.resultRow}>
+    <Text style={styles.resultText}>
+      RESULT: {actualResult}
+    </Text>
+
+    {prediction && (
+      <Text
+        style={[
+          styles.gradeText,
+          wasCorrect
+            ? styles.correctText
+            : styles.incorrectText,
+        ]}
+      >
+        {wasCorrect ? '✓ CORRECT' : '✕ INCORRECT'}
+      </Text>
+    )}
+  </View>
+)}
               </View>
 
               <View style={styles.pickButtons}>
                 <Pressable
-  disabled={game.available === false}
-  style={[
+disabled={
+  game.available === false || gameLocked
+}  style={[
     styles.pickButton,
     prediction === 'W' && styles.winSelected,
-    game.available === false && styles.disabledPickButton,
+    (game.available === false || gameLocked) &&
+  styles.disabledPickButton,
   ]}
   onPress={() => makePrediction(game.id, 'W')}
 >
@@ -1052,11 +895,13 @@ return {
                 </Pressable>
 
                 <Pressable
-  disabled={game.available === false}
-  style={[
+disabled={
+  game.available === false || gameLocked
+}  style={[
     styles.pickButton,
     prediction === 'L' && styles.lossSelected,
-    game.available === false && styles.disabledPickButton,
+    (game.available === false || gameLocked) &&
+  styles.disabledPickButton,
   ]}
   onPress={() => makePrediction(game.id, 'L')}
 >
@@ -1078,9 +923,7 @@ return {
   );
 })}
 
-        <Text style={styles.demoNote}>
-          Prototype schedule — full 82-game schedule coming next.
-        </Text>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -1202,7 +1045,54 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 30,
   },
+submitCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 16,
+  padding: 17,
+  marginBottom: 24,
+},
 
+submitStatus: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+submitTitle: {
+  color: '#F3EFE3',
+  fontSize: 28,
+  fontWeight: '900',
+  marginTop: 6,
+},
+
+submitDescription: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 6,
+},
+
+submitButton: {
+  backgroundColor: '#75C7F0',
+  borderRadius: 9,
+  paddingVertical: 12,
+  alignItems: 'center',
+  marginTop: 14,
+},
+
+submitButtonDisabled: {
+  opacity: 0.35,
+},
+
+submitButtonText: {
+  color: '#07111F',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
   progressFill: {
     height: '100%',
     backgroundColor: '#75C7F0',
@@ -1227,6 +1117,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
+    marginTop: 3,
   },
   monthContainer: {
   marginBottom: 10,
@@ -1390,12 +1281,210 @@ resetButton: {
   borderColor: '#55383D',
   backgroundColor: '#21181D',
 },
+loadingContainer: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 30,
+},
 
+loadingText: {
+  color: '#8FA2B3',
+  fontSize: 15,
+  fontWeight: '700',
+},
 resetButtonText: {
   color: '#C98389',
   fontSize: 10,
   fontWeight: '900',
   letterSpacing: 1,
+},
+deadlineCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 14,
+  padding: 15,
+  marginBottom: 20,
+},
+
+deadlineCardLocked: {
+  backgroundColor: '#21181D',
+  borderColor: '#55383D',
+},
+
+deadlineLabel: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+deadlineText: {
+  color: '#F3EFE3',
+  fontSize: 16,
+  fontWeight: '900',
+  marginTop: 5,
+},
+
+deadlineNote: {
+  color: '#8FA2B3',
+  fontSize: 12,
+  marginTop: 5,
+},
+resultRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+  marginTop: 6,
+},
+
+resultText: {
+  color: '#8FA2B3',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+gradeText: {
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+correctText: {
+  color: '#8FD1A7',
+},
+
+incorrectText: {
+  color: '#D98B91',
+},
+accuracyCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+  marginTop: 14,
+},
+
+accuracyHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
+accuracyEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+accuracyNumber: {
+  color: '#F3EFE3',
+  fontSize: 34,
+  fontWeight: '900',
+  marginTop: 3,
+},
+
+gradedBadge: {
+  backgroundColor: '#172A3C',
+  borderRadius: 7,
+  paddingHorizontal: 9,
+  paddingVertical: 6,
+},
+
+gradedBadgeText: {
+  color: '#8FA2B3',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+accuracyStats: {
+  flexDirection: 'row',
+  borderTopWidth: 1,
+  borderTopColor: '#20354A',
+  marginTop: 14,
+  paddingTop: 14,
+},
+
+accuracyStat: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+correctNumber: {
+  color: '#8FD1A7',
+  fontSize: 20,
+  fontWeight: '900',
+},
+
+incorrectNumber: {
+  color: '#D98B91',
+  fontSize: 20,
+  fontWeight: '900',
+},
+
+accuracyStatLabel: {
+  color: '#7F94A7',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1,
+  marginTop: 3,
+},
+leaderboardButton: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 16,
+  padding: 17,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginTop: 14,
+  marginBottom: 8,
+},
+
+leaderboardEyebrow: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+leaderboardTitle: {
+  color: '#F3EFE3',
+  fontSize: 17,
+  fontWeight: '900',
+  marginTop: 3,
+},
+
+leaderboardArrow: {
+  color: '#75C7F0',
+  fontSize: 30,
+  fontWeight: '300',
+},
+scheduleActions: {
+  flexDirection: 'row',
+  gap: 7,
+},
+
+scheduleActionButton: {
+  backgroundColor: '#162A3C',
+  borderWidth: 1,
+  borderColor: '#2C4A61',
+  borderRadius: 7,
+  paddingHorizontal: 9,
+  paddingVertical: 7,
+},
+
+scheduleActionText: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.7,
 },
   demoNote: {
     color: '#60778A',

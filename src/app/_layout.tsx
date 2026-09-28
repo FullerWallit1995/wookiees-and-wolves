@@ -24,6 +24,15 @@ export default function RootLayout() {
           animation: 'slide_from_right',
         }}
       />
+
+      <Stack.Screen
+  name="leaderboard"
+  options={{
+    presentation: 'card',
+    animation: 'slide_from_right',
+  }}
+/>
     </Stack>
+    
   );
 }

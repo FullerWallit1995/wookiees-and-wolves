@@ -1,6 +1,10 @@
+import { useDenPreview } from '@/hooks/useDenPreview';
+import { useEpisodes } from '@/hooks/useEpisodes';
+import { usePredictorSummary } from '@/hooks/usePredictorSummary';
 import { useRouter } from 'expo-router';
 import {
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,7 +15,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
-
+    const {
+    latestEpisode,
+    loading: episodesLoading,
+  } = useEpisodes();
+const {
+  wins,
+  losses,
+  predicted,
+  remaining,
+  loading: predictorLoading,
+} = usePredictorSummary();
+const {
+  items: denItems,
+  loading: denLoading,
+} = useDenPreview();
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -44,26 +62,65 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.featureCard}>
-          <View style={styles.featureAccent} />
+  <View style={styles.featureAccent} />
 
-          <View style={styles.featureContent}>
-            <Text style={styles.kicker}>NEW EPISODE</Text>
+  <View style={styles.featureContent}>
+    <Text style={styles.kicker}>
+      NEW EPISODE
+    </Text>
 
-            <Text style={styles.episodeTitle}>
-              This is the Pilot
+    {episodesLoading ? (
+      <Text style={styles.episodeDescription}>
+        Loading latest episode...
+      </Text>
+    ) : latestEpisode ? (
+      <>
+        <Text style={styles.episodeMeta}>
+          {latestEpisode.date}
+          {latestEpisode.duration
+            ? ` • ${latestEpisode.duration}`
+            : ''}
+        </Text>
+
+        <Text style={styles.episodeTitle}>
+          {latestEpisode.title}
+        </Text>
+
+        <View style={styles.episodeActions}>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => {
+              if (latestEpisode.youtube) {
+                Linking.openURL(latestEpisode.youtube);
+              }
+            }}
+          >
+            <Text style={styles.primaryButtonText}>
+              WATCH
             </Text>
+          </Pressable>
 
-            <Text style={styles.episodeDescription}>
-              Introductions, Wolves PF Debacle, Starfighter & MORE
+          <Pressable
+            style={styles.listenButton}
+            onPress={() => {
+              if (latestEpisode.spotify) {
+                Linking.openURL(latestEpisode.spotify);
+              }
+            }}
+          >
+            <Text style={styles.listenButtonText}>
+              LISTEN
             </Text>
-
-            <Pressable style={styles.primaryButton}>
-              <Text style={styles.primaryButtonText}>
-                WATCH / LISTEN
-              </Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </View>
+      </>
+    ) : (
+      <Text style={styles.episodeDescription}>
+        Latest episode unavailable.
+      </Text>
+    )}
+  </View>
+</View>
 
         {/* PREDICTOR */}
         <View style={styles.sectionHeader}>
@@ -80,8 +137,17 @@ export default function HomeScreen() {
         <View style={styles.predictorCard}>
           <View>
             <Text style={styles.kicker}>YOUR SEASON</Text>
-            <Text style={styles.record}>0–0</Text>
-            <Text style={styles.muted}>82 games left to predict</Text>
+            <Text style={styles.record}>
+  {predictorLoading ? '—' : `${wins}–${losses}`}
+</Text>
+
+<Text style={styles.muted}>
+  {predictorLoading
+    ? 'Loading your predictions...'
+    : predicted === 82
+      ? 'All 82 games predicted'
+      : `${predicted} of 82 predicted • ${remaining} left`}
+</Text>
           </View>
 
           <View style={styles.predictorBadge}>
@@ -129,38 +195,72 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
-        {/* FROM W&W */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>From W&W</Text>
-        </View>
+       {/* FROM THE DEN */}
+<View style={styles.sectionHeader}>
+  <Text style={styles.sectionTitle}>
+    From The Den
+  </Text>
 
-        <View style={styles.postCard}>
-          <View style={styles.postCategory}>
-            <Text style={styles.postCategoryText}>WOLVES</Text>
-          </View>
+  <Pressable
+    style={styles.sectionButton}
+    onPress={() => router.push('/den')}
+  >
+    <Text style={styles.sectionLink}>
+      ENTER
+    </Text>
+  </Pressable>
+</View>
 
-          <Text style={styles.postTitle}>
-            What's your Wolves prediction this season?
-          </Text>
+{denLoading ? (
+  <View style={styles.postCard}>
+    <Text style={styles.postText}>
+      Loading The Den...
+    </Text>
+  </View>
+) : denItems.length > 0 ? (
+  denItems.map((item) => (
+    <Pressable
+      key={`${item.type}-${item.id}`}
+      style={styles.postCard}
+      onPress={() => router.push('/den')}
+    >
+      <View
+        style={[
+          styles.postCategory,
+          item.category === 'cantina' &&
+            styles.starWarsCategory,
+        ]}
+      >
+        <Text style={styles.postCategoryText}>
+          {item.category === 'pack'
+            ? 'THE PACK'
+            : 'THE CANTINA'}
+          {item.type === 'poll' ? ' • POLL' : ''}
+        </Text>
+      </View>
 
-          <Text style={styles.postText}>
-            Head to the Predictor and build your record game by game.
-          </Text>
-        </View>
+      <Text style={styles.postTitle}>
+        {item.text}
+      </Text>
 
-        <View style={styles.postCard}>
-          <View style={[styles.postCategory, styles.starWarsCategory]}>
-            <Text style={styles.postCategoryText}>STAR WARS</Text>
-          </View>
-
-          <Text style={styles.postTitle}>
-            What's your Top 5 Star Wars?
-          </Text>
-
-          <Text style={styles.postText}>
-            The debate belongs in The Cantina.
-          </Text>
-        </View>
+      <Text style={styles.postText}>
+        {item.type === 'post'
+          ? `${item.likes} ${
+              item.likes === 1 ? 'like' : 'likes'
+            }`
+          : `${item.votes} ${
+              item.votes === 1 ? 'vote' : 'votes'
+            }`}
+      </Text>
+    </Pressable>
+  ))
+) : (
+  <View style={styles.postCard}>
+    <Text style={styles.postText}>
+      Nothing from The Den yet.
+    </Text>
+  </View>
+)} 
         <View style={styles.sectionHeader}>
   <Text style={styles.sectionTitle}>W&W Tools</Text>
 </View>
@@ -168,7 +268,6 @@ export default function HomeScreen() {
 <Pressable
   style={styles.toolCard}
   onPress={() => {
-    console.log('AUREBESH PRESSED');
     router.push('/aurebesh');
   }}
 >
@@ -265,7 +364,36 @@ toolArrow: {
     fontSize: 21,
     fontWeight: '900',
   },
+episodeMeta: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.2,
+  marginBottom: 7,
+},
 
+episodeActions: {
+  flexDirection: 'row',
+  gap: 10,
+  marginTop: 18,
+},
+
+listenButton: {
+  alignSelf: 'flex-start',
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 10,
+  paddingHorizontal: 16,
+  paddingVertical: 11,
+},
+
+listenButtonText: {
+  color: '#DCE8EF',
+  fontSize: 11,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
   sectionButton: {
     backgroundColor: '#162A3C',
     borderWidth: 1,
@@ -336,7 +464,6 @@ toolArrow: {
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 11,
-    marginTop: 18,
   },
 
   primaryButtonText: {

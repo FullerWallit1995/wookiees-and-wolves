@@ -112,11 +112,6 @@ export function useEpisodes() {
               spotify: links?.spotify,
             };
           });
-          console.log(
-  'LATEST EPISODE LINKS:',
-  formattedEpisodes[0]?.youtube,
-  formattedEpisodes[0]?.spotify
-);
         setEpisodes(formattedEpisodes);
       } catch (err) {
         console.log('Could not load episodes:', err);
