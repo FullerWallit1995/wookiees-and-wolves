@@ -1,12 +1,14 @@
+import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { User } from '@supabase/supabase-js';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Alert,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 type Prediction = 'W' | 'L';
@@ -621,7 +623,30 @@ export default function PredictorScreen() {
     Record<number, Prediction>
   >({});
   const [predictionsLoaded, setPredictionsLoaded] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+const [cloudLoaded, setCloudLoaded] = useState(false);
+useEffect(() => {
+  async function loadUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
+    setUser(user);
+  }
+
+  loadUser();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+    setCloudLoaded(false);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
 useEffect(() => {
   async function loadPredictions() {
     try {
@@ -642,6 +667,60 @@ useEffect(() => {
   loadPredictions();
 }, []);
 useEffect(() => {
+  async function syncInitialPredictions() {
+    if (!user || !predictionsLoaded || cloudLoaded) {
+      return;
+    }
+
+    const { data: cloudData, error } = await supabase
+      .from('predictor_predictions')
+      .select('predictions')
+      .eq('user_id', user.id)
+      .eq('season', '2026-27')
+      .maybeSingle();
+
+    if (error) {
+      console.log(
+        'Could not load cloud predictions:',
+        error
+      );
+      return;
+    }
+
+    if (cloudData?.predictions) {
+      const cloudPredictions =
+        cloudData.predictions as Record<number, Prediction>;
+
+      setPredictions(cloudPredictions);
+    } else if (Object.keys(predictions).length > 0) {
+      const { error: uploadError } = await supabase
+        .from('predictor_predictions')
+        .insert({
+          user_id: user.id,
+          season: '2026-27',
+          predictions,
+        });
+
+      if (uploadError) {
+        console.log(
+          'Could not upload local predictions:',
+          uploadError
+        );
+        return;
+      }
+    }
+
+    setCloudLoaded(true);
+  }
+
+  syncInitialPredictions();
+}, [
+  user,
+  predictionsLoaded,
+  cloudLoaded,
+  predictions,
+]);
+useEffect(() => {
   async function savePredictions() {
     if (!predictionsLoaded) {
       return;
@@ -659,6 +738,45 @@ useEffect(() => {
 
   savePredictions();
 }, [predictions, predictionsLoaded]);
+useEffect(() => {
+  async function savePredictionsToCloud() {
+    if (
+      !user ||
+      !predictionsLoaded ||
+      !cloudLoaded
+    ) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('predictor_predictions')
+      .upsert(
+        {
+          user_id: user.id,
+          season: '2026-27',
+          predictions,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'user_id,season',
+        }
+      );
+
+    if (error) {
+      console.log(
+        'Could not save cloud predictions:',
+        error
+      );
+    }
+  }
+
+  savePredictionsToCloud();
+}, [
+  predictions,
+  user,
+  predictionsLoaded,
+  cloudLoaded,
+]);
 const [expandedMonths, setExpandedMonths] = useState<
   Record<string, boolean>
 >({

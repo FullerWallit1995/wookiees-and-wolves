@@ -21,7 +21,7 @@ export default function HomeScreen() {
         {/* BRAND HEADER */}
         <View style={styles.logoContainer}>
           <Image
-            source={require('../../assets/wookiees-wolves-logo.png')}
+            source={require('../../../assets/wookiees-wolves-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -161,6 +161,33 @@ export default function HomeScreen() {
             The debate belongs in The Cantina.
           </Text>
         </View>
+        <View style={styles.sectionHeader}>
+  <Text style={styles.sectionTitle}>W&W Tools</Text>
+</View>
+
+<Pressable
+  style={styles.toolCard}
+  onPress={() => {
+    console.log('AUREBESH PRESSED');
+    router.push('/aurebesh');
+  }}
+>
+  <View>
+    <Text style={styles.kicker}>
+      TRANSLATOR
+    </Text>
+
+    <Text style={styles.toolTitle}>
+      Aurebesh Translator
+    </Text>
+
+    <Text style={styles.toolDescription}>
+      Translate English into a galaxy far, far away.
+    </Text>
+  </View>
+
+  <Text style={styles.toolArrow}>›</Text>
+</Pressable>  
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,7 +198,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#07111F',
   },
+toolCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 20,
+},
 
+toolTitle: {
+  color: '#F3EFE3',
+  fontSize: 18,
+  fontWeight: '900',
+},
+
+toolDescription: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  marginTop: 4,
+},
+
+toolArrow: {
+  color: '#75C7F0',
+  fontSize: 30,
+  fontWeight: '300',
+},
   content: {
     paddingHorizontal: 18,
     paddingBottom: 130,

@@ -1,13 +1,12 @@
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Crypto from 'expo-crypto';
+import type { User } from '@supabase/supabase-js';
 import { useEffect, useMemo, useState } from 'react';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,34 +45,8 @@ export default function DenScreen() {
 const [databasePosts, setDatabasePosts] = useState<Post[]>([]);
 const [postsLoading, setPostsLoading] = useState(true);
 const [databasePolls, setDatabasePolls] = useState<Poll[]>([]);
-const [deviceId, setDeviceId] = useState<string | null>(null);
-useEffect(() => {
-  async function loadDeviceId() {
-    try {
-      const existingId = await AsyncStorage.getItem(
-        'wookiees-wolves-device-id'
-      );
+const [user, setUser] = useState<User | null>(null);
 
-      if (existingId) {
-        setDeviceId(existingId);
-        return;
-      }
-
-      const newId = Crypto.randomUUID();
-
-      await AsyncStorage.setItem(
-        'wookiees-wolves-device-id',
-        newId
-      );
-
-      setDeviceId(newId);
-    } catch (error) {
-      console.log('Could not create device ID:', error);
-    }
-  }
-
-  loadDeviceId();
-}, []);
 useEffect(() => {
   async function loadPosts() {
     try {
@@ -155,9 +128,9 @@ useEffect(() => {
   }, []);
   useEffect(() => {
   async function loadVotes() {
-    if (!deviceId) {
-      return;
-    }
+    if (!user) {
+  return;
+}
 
     const { data: votes, error } = await supabase
       .from('poll_votes')
@@ -177,9 +150,11 @@ useEffect(() => {
       voteCounts[optionId] =
         (voteCounts[optionId] ?? 0) + 1;
 
-      if (vote.device_id === deviceId) {
-        myVotes[vote.poll_id] = optionId;
-      }
+      const isMyVote = vote.user_id === user.id;
+
+if (isMyVote) {
+  myVotes[vote.poll_id] = optionId;
+}
     });
 
     setPollVotes(myVotes);
@@ -196,13 +171,34 @@ useEffect(() => {
   }
 
   loadVotes();
-}, [deviceId, databasePolls.length]);
+}, [user, databasePolls.length]);
+useEffect(() => {
+  async function loadUser() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    setUser(user);
+  }
+
+  loadUser();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((_event, session) => {
+    setUser(session?.user ?? null);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
 
 useEffect(() => {
   async function loadLikes() {
-    if (!deviceId) {
-      return;
-    }
+    if (!user) {
+  return;
+}
 
     const { data: likes, error } = await supabase
       .from('post_likes')
@@ -220,9 +216,11 @@ useEffect(() => {
       likeCounts[like.post_id] =
         (likeCounts[like.post_id] ?? 0) + 1;
 
-      if (like.device_id === deviceId) {
-        myLikes[like.post_id] = true;
-      }
+      const isMyLike = like.user_id === user.id;
+
+if (isMyLike) {
+  myLikes[like.post_id] = true;
+}
     });
 
     setLikedPosts(myLikes);
@@ -236,7 +234,7 @@ useEffect(() => {
   }
 
   loadLikes();
-}, [deviceId, databasePosts.length]);
+}, [user, databasePosts.length]);
   const [activeFilter, setActiveFilter] =
     useState<Filter>('all');
 
@@ -262,7 +260,7 @@ const visibleFeed = useMemo(() => {
 }, [activeFilter, databasePosts, databasePolls]);
 
 async function toggleLike(postId: number) {
-  if (!deviceId) {
+  if (!user) {
     return;
   }
 
@@ -273,7 +271,7 @@ async function toggleLike(postId: number) {
       .from('post_likes')
       .delete()
       .eq('post_id', postId)
-      .eq('device_id', deviceId);
+      .eq('user_id', user.id);
 
     if (error) {
       console.log('Could not remove like:', error);
@@ -284,7 +282,8 @@ async function toggleLike(postId: number) {
       .from('post_likes')
       .insert({
         post_id: postId,
-        device_id: deviceId,
+        user_id: user.id,
+        device_id: null,
       });
 
     if (error) {
@@ -316,70 +315,90 @@ async function toggleLike(postId: number) {
 }
 
 async function vote(pollId: number, optionId: string) {
-
-  if (!deviceId) {
-    console.log('NO DEVICE ID YET');
+  if (!user) {
     return;
   }
 
   const numericOptionId = Number(optionId);
 
-  const { error } = await supabase
-    .from('poll_votes')
-    .upsert(
-      {
-        poll_id: pollId,
-        option_id: numericOptionId,
-        device_id: deviceId,
-      },
-      {
-        onConflict: 'poll_id,device_id',
-      }
-    );
+  const { data: existingVote, error: lookupError } =
+    await supabase
+      .from('poll_votes')
+      .select('id')
+      .eq('poll_id', pollId)
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-
-  if (error) {
-    console.log('Could not save vote:', error);
+  if (lookupError) {
+    console.log('Could not find existing vote:', lookupError);
     return;
   }
 
-const previousOptionId = pollVotes[pollId];
+  if (existingVote) {
+    const { error } = await supabase
+      .from('poll_votes')
+      .update({
+        option_id: numericOptionId,
+      })
+      .eq('id', existingVote.id);
 
-setPollVotes((current) => ({
-  ...current,
-  [pollId]: optionId,
-}));
-
-setDatabasePolls((currentPolls) =>
-  currentPolls.map((poll) => {
-    if (poll.id !== pollId) {
-      return poll;
+    if (error) {
+      console.log('Could not change vote:', error);
+      return;
     }
+  } else {
+    const { error } = await supabase
+      .from('poll_votes')
+      .insert({
+        poll_id: pollId,
+        option_id: numericOptionId,
+        user_id: user.id,
+        device_id: null,
+      });
 
-    return {
-      ...poll,
-      options: poll.options.map((option) => {
-        let newVoteCount = option.votes;
+    if (error) {
+      console.log('Could not save vote:', error);
+      return;
+    }
+  }
 
-        if (
-          previousOptionId &&
-          option.id === previousOptionId
-        ) {
-          newVoteCount -= 1;
-        }
+  const previousOptionId = pollVotes[pollId];
 
-        if (option.id === optionId) {
-          newVoteCount += 1;
-        }
+  setPollVotes((current) => ({
+    ...current,
+    [pollId]: optionId,
+  }));
 
-        return {
-          ...option,
-          votes: Math.max(0, newVoteCount),
-        };
-      }),
-    };
-  })
-);
+  setDatabasePolls((currentPolls) =>
+    currentPolls.map((poll) => {
+      if (poll.id !== pollId) {
+        return poll;
+      }
+
+      return {
+        ...poll,
+        options: poll.options.map((option) => {
+          let newVoteCount = option.votes;
+
+          if (
+            previousOptionId &&
+            option.id === previousOptionId
+          ) {
+            newVoteCount -= 1;
+          }
+
+          if (option.id === optionId) {
+            newVoteCount += 1;
+          }
+
+          return {
+            ...option,
+            votes: Math.max(0, newVoteCount),
+          };
+        }),
+      };
+    })
+  );
 }
 
   

@@ -1,13 +1,13 @@
 import { XMLParser } from 'fast-xml-parser';
 import { useEffect, useState } from 'react';
 import {
-    Image,
-    Linking,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Image,
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -175,7 +175,7 @@ if (error || !latestEpisode) {
         <View style={styles.featuredCard}>
           <View style={styles.artworkContainer}>
             <Image
-  source={require('../../assets/wookiees-wolves-logo.png')}
+  source={require('../../../assets/wookiees-wolves-logo.png')}
   style={styles.artwork}
   resizeMode="contain"
 />
@@ -242,7 +242,7 @@ onPress={() => {
           <View key={episode.id} style={styles.episodeCard}>
             <View style={styles.smallArtwork}>
               <Image
-                source={require('../../assets/wookiees-wolves-logo.png')}
+                source={require('../../../assets/wookiees-wolves-logo.png')}
                 style={styles.smallArtworkImage}
                 resizeMode="cover"
               />
