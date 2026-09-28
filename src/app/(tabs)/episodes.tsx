@@ -1,5 +1,5 @@
-import { XMLParser } from 'fast-xml-parser';
-import { useEffect, useState } from 'react';
+import { useEpisodes } from '@/hooks/useEpisodes';
+
 import {
   Image,
   Linking,
@@ -11,149 +11,39 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type Episode = {
-  id: string;
-  title: string;
-  date: string;
-  duration?: string;
-  image?: string;
-  audioUrl?: string;
-    youtube?: string;
-  spotify?: string;
-};
-
-const RSS_URL =
-  'https://anchor.fm/s/11561f8bc/podcast/rss';
-
-const EPISODE_LINKS_URL =
-  'https://raw.githubusercontent.com/FullerWallit1995/wookiees-and-wolves/main/src/data/episode-links.json';
 export default function EpisodesScreen() {
-    const [episodes, setEpisodes] = useState<Episode[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState(false);
-useEffect(() => {
-  async function loadEpisodes() {
-    try {
-      setLoading(true);
-      setError(false);
+  const {
+    episodes,
+    latestEpisode,
+    loading,
+    error,
+  } = useEpisodes();
 
-      const [rssResponse, linksResponse] = await Promise.all([
-  fetch(RSS_URL),
-  fetch(EPISODE_LINKS_URL),
-]);
+  const olderEpisodes = episodes.slice(1);
 
-if (!rssResponse.ok) {
-  throw new Error('Could not load RSS feed');
-}
-
-if (!linksResponse.ok) {
-  throw new Error('Could not load episode links');
-}
-
-const xml = await rssResponse.text();
-const episodeLinks = await linksResponse.json();
-
-      const parser = new XMLParser({
-        ignoreAttributes: false,
-        attributeNamePrefix: '@_',
-      });
-
-      const parsedFeed = parser.parse(xml);
-
-      const items = parsedFeed?.rss?.channel?.item ?? [];
-
-      const episodeItems = Array.isArray(items)
-        ? items
-        : [items];
-
-      const formattedEpisodes: Episode[] =
-  episodeItems.map((item: any, index: number) => {
-    const title =
-      item.title ?? 'Untitled Episode';
-
-    const links = episodeLinks.episodes.find(
-      (episode: {
-  match: string;
-  youtube: string;
-  spotify: string;
-}) =>
-        title
-          .toLowerCase()
-          .includes(episode.match.toLowerCase())
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusText}>
+            Loading episodes...
+          </Text>
+        </View>
+      </SafeAreaView>
     );
-
-    return {
-      id:
-        item.guid?.['#text'] ??
-        item.guid ??
-        String(index),
-
-      title,
-
-      date: item.pubDate
-        ? new Date(item.pubDate).toLocaleDateString(
-            'en-US',
-            {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            }
-          )
-        : '',
-
-      duration:
-        item['itunes:duration'] ?? '',
-
-      image:
-        item['itunes:image']?.['@_href'] ?? '',
-
-      audioUrl:
-        item.enclosure?.['@_url'] ?? '',
-
-      youtube:
-        links?.youtube,
-
-      spotify:
-        links?.spotify,
-    };
-  });
-
-      setEpisodes(formattedEpisodes);
-    } catch (err) {
-      console.log('Could not load episodes:', err);
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
   }
 
-  loadEpisodes();
-}, []);
-  const latestEpisode = episodes[0];
-  const olderEpisodes = episodes.slice(1);
-  if (loading) {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusText}>
-          Loading episodes...
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
-}
-
-if (error || !latestEpisode) {
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.statusContainer}>
-        <Text style={styles.statusText}>
-          Couldn't load episodes.
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
-}
+  if (error || !latestEpisode) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusText}>
+            Couldn't load episodes.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -162,76 +52,89 @@ if (error || !latestEpisode) {
         showsVerticalScrollIndicator={false}
       >
         {/* HEADER */}
-        <Text style={styles.eyebrow}>WOOKIEES & WOLVES</Text>
-        <Text style={styles.title}>Episodes</Text>
+        <Text style={styles.eyebrow}>
+          WOOKIEES & WOLVES
+        </Text>
+
+        <Text style={styles.title}>
+          Episodes
+        </Text>
 
         <Text style={styles.subtitle}>
           Watch, listen and catch up on the latest from W&W.
         </Text>
 
         {/* FEATURED EPISODE */}
-        <Text style={styles.sectionLabel}>LATEST EPISODE</Text>
+        <Text style={styles.sectionLabel}>
+          LATEST EPISODE
+        </Text>
 
         <View style={styles.featuredCard}>
           <View style={styles.artworkContainer}>
             <Image
-  source={require('../../../assets/wookiees-wolves-logo.png')}
-  style={styles.artwork}
-  resizeMode="contain"
-/>
+              source={require('../../../assets/wookiees-wolves-logo.png')}
+              style={styles.artwork}
+              resizeMode="contain"
+            />
 
             <View style={styles.latestBadge}>
-              <Text style={styles.latestBadgeText}>NEW</Text>
+              <Text style={styles.latestBadgeText}>
+                NEW
+              </Text>
             </View>
           </View>
 
           <View style={styles.featuredContent}>
             <Text style={styles.episodeMeta}>
-  {latestEpisode.date}
-  {latestEpisode.duration
-    ? ` • ${latestEpisode.duration}`
-    : ''}
-</Text>
+              {latestEpisode.date}
+              {latestEpisode.duration
+                ? ` • ${latestEpisode.duration}`
+                : ''}
+            </Text>
 
             <Text style={styles.featuredTitle}>
               {latestEpisode.title}
             </Text>
 
-
-
             <View style={styles.actionRow}>
-<Pressable
-  style={styles.primaryButton}
-onPress={() => {
-  if (latestEpisode.youtube) {
-    Linking.openURL(latestEpisode.youtube);
-  }
-}}
->
-  <Text style={styles.primaryButtonText}>
-    WATCH
-  </Text>
-</Pressable>
+              <Pressable
+                style={styles.primaryButton}
+                onPress={() => {
+                  if (latestEpisode.youtube) {
+                    Linking.openURL(
+                      latestEpisode.youtube
+                    );
+                  }
+                }}
+              >
+                <Text style={styles.primaryButtonText}>
+                  WATCH
+                </Text>
+              </Pressable>
 
-<Pressable
-  style={styles.secondaryButton}
-onPress={() => {
-  if (latestEpisode.spotify) {
-    Linking.openURL(latestEpisode.spotify);
-  }
-}}
->
-  <Text style={styles.secondaryButtonText}>
-    LISTEN
-  </Text>
-</Pressable>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => {
+                  if (latestEpisode.spotify) {
+                    Linking.openURL(
+                      latestEpisode.spotify
+                    );
+                  }
+                }}
+              >
+                <Text style={styles.secondaryButtonText}>
+                  LISTEN
+                </Text>
+              </Pressable>
             </View>
           </View>
         </View>
 
         {/* MORE EPISODES */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>All Episodes</Text>
+          <Text style={styles.sectionTitle}>
+            All Episodes
+          </Text>
 
           <Text style={styles.episodeCount}>
             {episodes.length} EPISODES
@@ -239,7 +142,10 @@ onPress={() => {
         </View>
 
         {olderEpisodes.map((episode) => (
-          <View key={episode.id} style={styles.episodeCard}>
+          <View
+            key={episode.id}
+            style={styles.episodeCard}
+          >
             <View style={styles.smallArtwork}>
               <Image
                 source={require('../../../assets/wookiees-wolves-logo.png')}
@@ -250,17 +156,15 @@ onPress={() => {
 
             <View style={styles.episodeInfo}>
               <Text style={styles.episodeMeta}>
-  {episode.date}
-  {episode.duration
-    ? ` • ${episode.duration}`
-    : ''}
-</Text>
+                {episode.date}
+                {episode.duration
+                  ? ` • ${episode.duration}`
+                  : ''}
+              </Text>
 
               <Text style={styles.episodeTitle}>
                 {episode.title}
               </Text>
-
-
             </View>
 
             <Text style={styles.arrow}>›</Text>
@@ -269,57 +173,59 @@ onPress={() => {
 
         {/* FOLLOW */}
         <View style={styles.followCard}>
-          <Text style={styles.followEyebrow}>DON'T MISS AN EPISODE</Text>
+          <Text style={styles.followEyebrow}>
+            DON'T MISS AN EPISODE
+          </Text>
 
           <Text style={styles.followTitle}>
             Follow Wookiees & Wolves
           </Text>
 
           <Text style={styles.followText}>
-            New episodes, Wolves takes, Star Wars discussions and
-            more.
+            New episodes, Wolves takes, Star Wars discussions
+            and more.
           </Text>
 
           <View style={styles.followButtons}>
-  <Pressable
-    style={styles.platformButton}
-    onPress={() =>
-      Linking.openURL(
-        'https://www.youtube.com/@WookieesAndWolves'
-      )
-    }
-  >
-    <Text style={styles.platformButtonText}>
-      YOUTUBE
-    </Text>
-  </Pressable>
+            <Pressable
+              style={styles.platformButton}
+              onPress={() =>
+                Linking.openURL(
+                  'https://www.youtube.com/@WookieesAndWolves'
+                )
+              }
+            >
+              <Text style={styles.platformButtonText}>
+                YOUTUBE
+              </Text>
+            </Pressable>
 
-  <Pressable
-    style={styles.platformButton}
-    onPress={() =>
-      Linking.openURL(
-        'https://open.spotify.com/show/033WNBaM4MFNX4gyvnPAsf?si=GpFz1TW8S9unJlWYjMy0Ag'
-      )
-    }
-  >
-    <Text style={styles.platformButtonText}>
-      SPOTIFY
-    </Text>
-  </Pressable>
+            <Pressable
+              style={styles.platformButton}
+              onPress={() =>
+                Linking.openURL(
+                  'https://open.spotify.com/show/033WNBaM4MFNX4gyvnPAsf?si=GpFz1TW8S9unJlWYjMy0Ag'
+                )
+              }
+            >
+              <Text style={styles.platformButtonText}>
+                SPOTIFY
+              </Text>
+            </Pressable>
 
-  <Pressable
-    style={styles.platformButton}
-    onPress={() =>
-      Linking.openURL(
-        'https://podcasts.apple.com/us/podcast/wookiees-wolves/id6815386721'
-      )
-    }
-  >
-    <Text style={styles.platformButtonText}>
-      APPLE
-    </Text>
-  </Pressable>
-</View>
+            <Pressable
+              style={styles.platformButton}
+              onPress={() =>
+                Linking.openURL(
+                  'https://podcasts.apple.com/us/podcast/wookiees-wolves/id6815386721'
+                )
+              }
+            >
+              <Text style={styles.platformButtonText}>
+                APPLE
+              </Text>
+            </Pressable>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -377,19 +283,19 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
 
-artworkContainer: {
-  height: 230,
-  backgroundColor: '#07111F',
-  position: 'relative',
-  paddingHorizontal: 20,
-  paddingVertical: 10,
-},
+  artworkContainer: {
+    height: 230,
+    backgroundColor: '#07111F',
+    position: 'relative',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
 
-artwork: {
-  width: '100%',
-  height: '100%',
-  alignSelf: 'center',
-},
+  artwork: {
+    width: '100%',
+    height: '100%',
+    alignSelf: 'center',
+  },
 
   latestBadge: {
     position: 'absolute',
@@ -411,19 +317,21 @@ artwork: {
   featuredContent: {
     padding: 20,
   },
-statusContainer: {
-  flex: 1,
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 30,
-},
 
-statusText: {
-  color: '#8FA2B3',
-  fontSize: 15,
-  fontWeight: '700',
-  textAlign: 'center',
-},
+  statusContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 30,
+  },
+
+  statusText: {
+    color: '#8FA2B3',
+    fontSize: 15,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+
   episodeMeta: {
     color: '#75C7F0',
     fontSize: 9,
@@ -436,13 +344,6 @@ statusText: {
     color: '#F3EFE3',
     fontSize: 24,
     fontWeight: '900',
-  },
-
-  description: {
-    color: '#9DAFBD',
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 7,
   },
 
   actionRow: {
@@ -534,13 +435,6 @@ statusText: {
     color: '#F3EFE3',
     fontSize: 15,
     fontWeight: '800',
-  },
-
-  smallDescription: {
-    color: '#7F94A7',
-    fontSize: 12,
-    lineHeight: 17,
-    marginTop: 4,
   },
 
   arrow: {
