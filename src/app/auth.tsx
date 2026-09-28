@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
     Alert,
@@ -19,8 +19,12 @@ type Mode = 'login' | 'signup';
 
 export default function AuthScreen() {
   const router = useRouter();
-
-  const [mode, setMode] = useState<Mode>('signup');
+const params = useLocalSearchParams<{
+  mode?: string;
+}>();
+  const [mode, setMode] = useState<Mode>(
+  params.mode === 'login' ? 'login' : 'signup'
+);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);

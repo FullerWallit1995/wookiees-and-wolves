@@ -224,7 +224,12 @@ async function saveProfile() {
 
           <Pressable
             style={styles.primaryButton}
-            onPress={() => router.push('/auth')}
+            onPress={() =>
+  router.push({
+    pathname: '/auth',
+    params: { mode: 'signup' },
+  })
+}
           >
             <Text style={styles.primaryButtonText}>
               CREATE ACCOUNT
@@ -233,7 +238,12 @@ async function saveProfile() {
 
           <Pressable
             style={styles.secondaryButton}
-            onPress={() => router.push('/auth')}
+            onPress={() =>
+  router.push({
+    pathname: '/auth',
+    params: { mode: 'login' },
+  })
+}
           >
             <Text style={styles.secondaryButtonText}>
               SIGN IN

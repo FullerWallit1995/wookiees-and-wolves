@@ -1,7 +1,8 @@
-import { useDenPreview } from '@/hooks/useDenPreview';
 import { useEpisodes } from '@/hooks/useEpisodes';
 import { usePredictorSummary } from '@/hooks/usePredictorSummary';
+import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
   Image,
   Linking,
@@ -15,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [displayName, setDisplayName] =
+  useState<string | null>(null);
     const {
     latestEpisode,
     loading: episodesLoading,
@@ -26,10 +29,46 @@ const {
   remaining,
   loading: predictorLoading,
 } = usePredictorSummary();
-const {
-  items: denItems,
-  loading: denLoading,
-} = useDenPreview();
+useEffect(() => {
+  async function loadProfile() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setDisplayName(null);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('display_name')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.log(
+        'Could not load Home profile:',
+        error
+      );
+      return;
+    }
+
+    setDisplayName(data?.display_name ?? null);
+  }
+
+  loadProfile();
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(() => {
+    loadProfile();
+  });
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -48,6 +87,11 @@ const {
         <Text style={styles.tagline}>
           STAR WARS • WOLVES BASKETBALL • TWO BEST FRIENDS
         </Text>
+        {displayName && (
+  <Text style={styles.greeting}>
+    Welcome back, {displayName}.
+  </Text>
+)}
 
         {/* LATEST EPISODE */}
         <View style={styles.sectionHeader}>
@@ -124,36 +168,59 @@ const {
 
         {/* PREDICTOR */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Wolves Predictor</Text>
+  <Text style={styles.sectionTitle}>
+    Wolves Predictor
+  </Text>
+</View>
 
-          <Pressable
-            style={styles.sectionButton}
-            onPress={() => router.push('/predictor')}
-          >
-            <Text style={styles.sectionLink}>OPEN</Text>
-          </Pressable>
-        </View>
+       <View style={styles.predictorCard}>
+  <View style={styles.predictorTop}>
+    <View style={styles.predictorInfo}>
+      <Text style={styles.kicker}>YOUR SEASON</Text>
 
-        <View style={styles.predictorCard}>
-          <View>
-            <Text style={styles.kicker}>YOUR SEASON</Text>
-            <Text style={styles.record}>
-  {predictorLoading ? '—' : `${wins}–${losses}`}
-</Text>
+      <Text style={styles.record}>
+        {predictorLoading ? '—' : `${wins}–${losses}`}
+      </Text>
 
-<Text style={styles.muted}>
-  {predictorLoading
-    ? 'Loading your predictions...'
-    : predicted === 82
-      ? 'All 82 games predicted'
-      : `${predicted} of 82 predicted • ${remaining} left`}
-</Text>
-          </View>
+      <Text style={styles.muted}>
+        {predictorLoading
+          ? 'Loading your predictions...'
+          : predicted === 82
+            ? 'All 82 games predicted'
+            : `${predicted} of 82 predicted • ${remaining} left`}
+      </Text>
+    </View>
 
-          <View style={styles.predictorBadge}>
-            <Text style={styles.wolfIcon}>🐺</Text>
-          </View>
-        </View>
+    <Image
+      source={require('../../../assets/wookiees-and-wolves-small-wolves-image.png')}
+      style={styles.predictorLogo}
+      resizeMode="contain"
+    />
+  </View>
+
+  <View style={styles.predictorActions}>
+    <Pressable
+      style={styles.predictorActionPrimary}
+      onPress={() => router.push('/predictor')}
+    >
+      <Text style={styles.predictorActionPrimaryText}>
+        OPEN PREDICTOR
+      </Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.predictorActionSecondary}
+      onPress={() => router.push('/leaderboard')}
+    >
+      <Text style={styles.predictorActionSecondaryText}>
+        LEADERBOARD
+      </Text>
+    </Pressable>
+  </View>
+</View>
+
+         
+        
 
         {/* THE DEN */}
         <View style={styles.sectionHeader}>
@@ -174,10 +241,20 @@ const {
         <View style={styles.denRow}>
           <Pressable
             style={styles.denCard}
-            onPress={() => router.push('/den')}
+            onPress={() =>
+  router.push({
+    pathname: '/den',
+    params: { filter: 'pack' },
+  })
+}
           >
-            <Text style={styles.denIcon}>🐺</Text>
-            <Text style={styles.denTitle}>The Pack</Text>
+            <Image
+  source={require('../../../assets/wookiees-and-wolves-small-wolves-image.png')}
+  style={styles.denLogo}
+  resizeMode="contain"
+/>
+
+<Text style={styles.denTitle}>The Pack</Text>
             <Text style={styles.denDescription}>
               Wolves & NBA
             </Text>
@@ -185,82 +262,27 @@ const {
 
           <Pressable
             style={styles.denCard}
-            onPress={() => router.push('/den')}
+            onPress={() =>
+  router.push({
+    pathname: '/den',
+    params: { filter: 'cantina' },
+  })
+}
           >
-            <Text style={styles.denIcon}>✦</Text>
-            <Text style={styles.denTitle}>The Cantina</Text>
+            <Image
+  source={require('../../../assets/wookiees-and-wolves-small_sw_image.png')}
+  style={styles.denLogo}
+  resizeMode="contain"
+/>
+
+<Text style={styles.denTitle}>The Cantina</Text>
             <Text style={styles.denDescription}>
               Star Wars
             </Text>
           </Pressable>
         </View>
 
-       {/* FROM THE DEN */}
-<View style={styles.sectionHeader}>
-  <Text style={styles.sectionTitle}>
-    From The Den
-  </Text>
-
-  <Pressable
-    style={styles.sectionButton}
-    onPress={() => router.push('/den')}
-  >
-    <Text style={styles.sectionLink}>
-      ENTER
-    </Text>
-  </Pressable>
-</View>
-
-{denLoading ? (
-  <View style={styles.postCard}>
-    <Text style={styles.postText}>
-      Loading The Den...
-    </Text>
-  </View>
-) : denItems.length > 0 ? (
-  denItems.map((item) => (
-    <Pressable
-      key={`${item.type}-${item.id}`}
-      style={styles.postCard}
-      onPress={() => router.push('/den')}
-    >
-      <View
-        style={[
-          styles.postCategory,
-          item.category === 'cantina' &&
-            styles.starWarsCategory,
-        ]}
-      >
-        <Text style={styles.postCategoryText}>
-          {item.category === 'pack'
-            ? 'THE PACK'
-            : 'THE CANTINA'}
-          {item.type === 'poll' ? ' • POLL' : ''}
-        </Text>
-      </View>
-
-      <Text style={styles.postTitle}>
-        {item.text}
-      </Text>
-
-      <Text style={styles.postText}>
-        {item.type === 'post'
-          ? `${item.likes} ${
-              item.likes === 1 ? 'like' : 'likes'
-            }`
-          : `${item.votes} ${
-              item.votes === 1 ? 'vote' : 'votes'
-            }`}
-      </Text>
-    </Pressable>
-  ))
-) : (
-  <View style={styles.postCard}>
-    <Text style={styles.postText}>
-      Nothing from The Den yet.
-    </Text>
-  </View>
-)} 
+       
         <View style={styles.sectionHeader}>
   <Text style={styles.sectionTitle}>W&W Tools</Text>
 </View>
@@ -271,22 +293,30 @@ const {
     router.push('/aurebesh');
   }}
 >
-  <View>
-    <Text style={styles.kicker}>
-      TRANSLATOR
-    </Text>
+  <View style={styles.toolContent}>
+    <Image
+      source={require('../../../assets/wookiees-and-wolves-small_sw_image.png')}
+      style={styles.toolLogo}
+      resizeMode="contain"
+    />
 
-    <Text style={styles.toolTitle}>
-      Aurebesh Translator
-    </Text>
+    <View style={styles.toolText}>
+      <Text style={styles.kicker}>
+        TRANSLATOR
+      </Text>
 
-    <Text style={styles.toolDescription}>
-      Translate English into a galaxy far, far away.
-    </Text>
+      <Text style={styles.toolTitle}>
+        Aurebesh Translator
+      </Text>
+
+      <Text style={styles.toolDescription}>
+        Translate English into a galaxy far, far away.
+      </Text>
+    </View>
   </View>
 
   <Text style={styles.toolArrow}>›</Text>
-</Pressable>  
+</Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -308,7 +338,21 @@ toolCard: {
   alignItems: 'center',
   marginBottom: 20,
 },
+toolContent: {
+  flex: 1,
+  flexDirection: 'row',
+  alignItems: 'center',
+},
 
+toolLogo: {
+  width: 54,
+  height: 54,
+  marginRight: 14,
+},
+
+toolText: {
+  flex: 1,
+},
 toolTitle: {
   color: '#F3EFE3',
   fontSize: 18,
@@ -473,18 +517,62 @@ listenButtonText: {
     letterSpacing: 1,
   },
 
-  predictorCard: {
-    backgroundColor: '#101D2B',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#20354A',
-    padding: 20,
-    marginBottom: 28,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
+ predictorCard: {
+  backgroundColor: '#101D2B',
+  borderRadius: 20,
+  borderWidth: 1,
+  borderColor: '#20354A',
+  padding: 20,
+  marginBottom: 28,
+},
+predictorTop: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
 
+predictorInfo: {
+  flex: 1,
+  paddingRight: 12,
+},
+
+predictorActions: {
+  flexDirection: 'row',
+  gap: 9,
+  marginTop: 18,
+},
+
+predictorActionPrimary: {
+  flex: 1,
+  backgroundColor: '#75C7F0',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+predictorActionPrimaryText: {
+  color: '#07111F',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+predictorActionSecondary: {
+  flex: 1,
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+predictorActionSecondaryText: {
+  color: '#DCE8EF',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
   record: {
     color: '#F3EFE3',
     fontSize: 46,
@@ -497,18 +585,6 @@ listenButtonText: {
     fontSize: 13,
   },
 
-  predictorBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#172A3C',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  wolfIcon: {
-    fontSize: 30,
-  },
 
   denRow: {
     flexDirection: 'row',
@@ -527,10 +603,11 @@ listenButtonText: {
     justifyContent: 'flex-end',
   },
 
-  denIcon: {
-    fontSize: 25,
-    marginBottom: 16,
-  },
+denLogo: {
+  width: 52,
+  height: 52,
+  marginBottom: 14,
+},
 
   denTitle: {
     color: '#F3EFE3',
@@ -585,4 +662,16 @@ listenButtonText: {
     lineHeight: 20,
     marginTop: 5,
   },
+  greeting: {
+  color: '#75C7F0',
+  fontSize: 13,
+  fontWeight: '800',
+  textAlign: 'center',
+  marginTop: -18,
+  marginBottom: 28,
+},
+predictorLogo: {
+  width: 64,
+  height: 64,
+},
 });

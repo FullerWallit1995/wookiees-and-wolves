@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
+import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
@@ -42,6 +43,9 @@ type FeedItem = Post | Poll;
 
 
 export default function DenScreen() {
+  const params = useLocalSearchParams<{
+  filter?: string;
+}>();
 const [databasePosts, setDatabasePosts] = useState<Post[]>([]);
 const [postsLoading, setPostsLoading] = useState(true);
 const [databasePolls, setDatabasePolls] = useState<Poll[]>([]);
@@ -236,8 +240,20 @@ if (isMyLike) {
   loadLikes();
 }, [user, databasePosts.length]);
   const [activeFilter, setActiveFilter] =
-    useState<Filter>('all');
+  useState<Filter>('all');
+useEffect(() => {
+  if (params.filter === 'pack') {
+    setActiveFilter('pack');
+    return;
+  }
 
+  if (params.filter === 'cantina') {
+    setActiveFilter('cantina');
+    return;
+  }
+
+  setActiveFilter('all');
+}, [params.filter]);
   const [likedPosts, setLikedPosts] =
     useState<Record<number, boolean>>({});
 
