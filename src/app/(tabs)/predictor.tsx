@@ -590,19 +590,35 @@ if (!gamesLoaded) {
       Sign in or create a W&W account to make picks and compete on the leaderboard.
     </Text>
 
-    <Pressable
-      style={styles.predictorGuestButton}
-      onPress={() =>
-        router.push({
-          pathname: '/auth',
-          params: { mode: 'signup' },
-        })
-      }
-    >
-      <Text style={styles.predictorGuestButtonText}>
-        CREATE ACCOUNT
-      </Text>
-    </Pressable>
+    <View style={styles.predictorGuestActions}>
+  <Pressable
+    style={styles.predictorGuestButton}
+    onPress={() =>
+      router.push({
+        pathname: '/auth',
+        params: { mode: 'signup' },
+      })
+    }
+  >
+    <Text style={styles.predictorGuestButtonText}>
+      CREATE ACCOUNT
+    </Text>
+  </Pressable>
+
+  <Pressable
+    style={styles.predictorGuestSignInButton}
+    onPress={() =>
+      router.push({
+        pathname: '/auth',
+        params: { mode: 'login' },
+      })
+    }
+  >
+    <Text style={styles.predictorGuestSignInText}>
+      SIGN IN
+    </Text>
+  </Pressable>
+</View>
   </View>
 )}
 {gradedPicks > 0 && (
@@ -1039,7 +1055,25 @@ predictorGuestButton: {
   alignItems: 'center',
   marginTop: 13,
 },
+predictorGuestActions: {
+  marginTop: 13,
+  gap: 8,
+},
 
+predictorGuestSignInButton: {
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+predictorGuestSignInText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
 predictorGuestButtonText: {
   color: '#07111F',
   fontSize: 9,

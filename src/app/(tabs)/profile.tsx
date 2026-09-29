@@ -19,6 +19,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import {
+  disablePredictorNotifications,
+  enablePredictorNotifications,
+} from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
@@ -49,6 +53,15 @@ const [predictorAccuracy, setPredictorAccuracy] =
 
 const [predictorGraded, setPredictorGraded] =
   useState(0);
+  const [
+  predictorRemindersEnabled,
+  setPredictorRemindersEnabled,
+] = useState(false);
+
+const [
+  notificationSaving,
+  setNotificationSaving,
+] = useState(false);
   const [predictorCompletedGames, setPredictorCompletedGames] =
   useState(0);
 
@@ -75,7 +88,25 @@ const [predictorGraded, setPredictorGraded] =
     setLoading(false);
     return;
   }
+const {
+  data: notificationPreferences,
+  error: notificationPreferencesError,
+} = await supabase
+  .from('notification_preferences')
+  .select('predictor_reminders')
+  .eq('user_id', user.id)
+  .maybeSingle();
 
+if (notificationPreferencesError) {
+  console.log(
+    'Could not load notification preferences:',
+    notificationPreferencesError
+  );
+} else {
+  setPredictorRemindersEnabled(
+    notificationPreferences?.predictor_reminders ?? false
+  );
+}
   const { data: profile, error: profileError } =
     await supabase
       .from('profiles')
@@ -292,6 +323,8 @@ useEffect(() => {
         setPredictorEntries(0);
         setPredictorAccuracy(null);
         setPredictorGraded(0);
+        setPredictorRemindersEnabled(false);
+setNotificationSaving(false);
         setPredictorCompletedGames(0);
         setLoading(false);
         setRole('member');
@@ -330,7 +363,54 @@ useEffect(() => {
       ]
     );
   }
+async function togglePredictorReminders() {
+  if (notificationSaving) {
+    return;
+  }
 
+  setNotificationSaving(true);
+
+  try {
+    if (predictorRemindersEnabled) {
+      const result =
+        await disablePredictorNotifications();
+
+      if (!result.success) {
+        Alert.alert(
+          'Could not update reminders',
+          'Please try again.'
+        );
+        return;
+      }
+
+      setPredictorRemindersEnabled(false);
+      return;
+    }
+
+    const result =
+      await enablePredictorNotifications();
+
+    if (!result.success) {
+      if (result.reason === 'permission_denied') {
+        Alert.alert(
+          'Notifications not enabled',
+          'Notification permission was not granted on this device.'
+        );
+      } else {
+        Alert.alert(
+          'Could not enable reminders',
+          'Please try again.'
+        );
+      }
+
+      return;
+    }
+
+    setPredictorRemindersEnabled(true);
+  } finally {
+    setNotificationSaving(false);
+  }
+}
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -606,7 +686,46 @@ useEffect(() => {
     </>
   )}
 </View>
+<Text style={styles.dashboardSectionLabel}>
+  NOTIFICATIONS
+</Text>
 
+<View style={styles.notificationCard}>
+  <View style={styles.notificationInfo}>
+    <Text style={styles.notificationTitle}>
+      Predictor Reminders
+    </Text>
+
+    <Text style={styles.notificationDescription}>
+      Get one reminder when you haven't made your pick
+      and tipoff is approaching.
+    </Text>
+  </View>
+
+  <Pressable
+    style={[
+      styles.notificationToggle,
+      predictorRemindersEnabled &&
+        styles.notificationToggleEnabled,
+    ]}
+    onPress={togglePredictorReminders}
+    disabled={notificationSaving}
+  >
+    <Text
+      style={[
+        styles.notificationToggleText,
+        predictorRemindersEnabled &&
+          styles.notificationToggleTextEnabled,
+      ]}
+    >
+      {notificationSaving
+        ? '...'
+        : predictorRemindersEnabled
+          ? 'ON'
+          : 'OFF'}
+    </Text>
+  </Pressable>
+</View>
         <View style={styles.accountCard}>
           <Text style={styles.accountLabel}>
             ACCOUNT
@@ -1049,7 +1168,61 @@ denStatsRow: {
   flexDirection: 'row',
   minHeight: 52,
 },
+notificationCard: {
+  width: '100%',
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 14,
+},
 
+notificationInfo: {
+  flex: 1,
+},
+
+notificationTitle: {
+  color: '#F3EFE3',
+  fontSize: 15,
+  fontWeight: '900',
+},
+
+notificationDescription: {
+  color: '#7F94A7',
+  fontSize: 11,
+  lineHeight: 17,
+  marginTop: 4,
+},
+
+notificationToggle: {
+  minWidth: 54,
+  borderRadius: 9,
+  borderWidth: 1,
+  borderColor: '#3B4C5C',
+  backgroundColor: '#172636',
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  alignItems: 'center',
+},
+
+notificationToggleEnabled: {
+  backgroundColor: '#294B3B',
+  borderColor: '#5C9A76',
+},
+
+notificationToggleText: {
+  color: '#8FA2B3',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+notificationToggleTextEnabled: {
+  color: '#8FD1A7',
+},
 denProfileButton: {
   backgroundColor: '#172A3C',
   borderWidth: 1,
