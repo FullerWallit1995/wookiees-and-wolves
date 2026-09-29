@@ -38,9 +38,9 @@ export function useEpisodes() {
         setError(false);
 
         const responses = await Promise.all([
-          fetch(RSS_URL),
-          fetch(EPISODE_LINKS_URL),
-        ]);
+  fetch(RSS_URL),
+  fetch(`${EPISODE_LINKS_URL}?t=${Date.now()}`),
+]);
 
         const rssResponse = responses[0];
         const linksResponse = responses[1];
@@ -74,13 +74,7 @@ export function useEpisodes() {
           episodeItems.map((item: any, index: number) => {
             const title =
               item.title ?? 'Untitled Episode';
-console.log('RSS TITLE:', title);
-console.log(
-  'JSON MATCHES:',
-  episodeLinks.episodes.map(
-    (episode: { match: string }) => episode.match
-  )
-);
+
            const links = episodeLinks.episodes.find(
   (episode: {
     match: string;

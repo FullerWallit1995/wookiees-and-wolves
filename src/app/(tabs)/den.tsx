@@ -7,6 +7,7 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -532,7 +533,39 @@ async function vote(
             onPress={() => setActiveFilter('cantina')}
           />
         </View>
+<View style={styles.denIdentity}>
+  <View style={styles.denIdentityLogos}>
+    {(activeFilter === 'all' || activeFilter === 'pack') && (
+      <Image
+        source={require('../../../assets/wookiees-and-wolves-small-wolves-image.png')}
+        style={styles.denIdentityLogo}
+        resizeMode="contain"
+      />
+    )}
 
+    {activeFilter === 'all' && (
+      <Text style={styles.denIdentityDivider}>×</Text>
+    )}
+
+    {(activeFilter === 'all' || activeFilter === 'cantina') && (
+      <Image
+        source={require('../../../assets/wookiees-and-wolves-small_sw_image.png')}
+        style={styles.denIdentityLogo}
+        resizeMode="contain"
+      />
+    )}
+  </View>
+
+  <Text style={styles.denIdentityLabel}>
+    {activeFilter === 'pack'
+      ? 'THE PACK'
+      : activeFilter === 'cantina'
+        ? 'THE CANTINA'
+        : 'ALL OF THE DEN'}
+  </Text>
+</View>
+
+{/* FEED */}
         {/* FEED */}
 {feedLoading ? (
   <View style={styles.feedStatusCard}>
@@ -1025,7 +1058,37 @@ feedStatusCard: {
   padding: 22,
   alignItems: 'center',
 },
+denIdentity: {
+  alignItems: 'center',
+  marginTop: -4,
+  marginBottom: 22,
+},
 
+denIdentityLogos: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 10,
+},
+
+denIdentityLogo: {
+  width: 54,
+  height: 54,
+},
+
+denIdentityDivider: {
+  color: '#53697B',
+  fontSize: 16,
+  fontWeight: '700',
+},
+
+denIdentityLabel: {
+  color: '#8FA2B3',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+  marginTop: 7,
+},
 feedStatusTitle: {
   color: '#F3EFE3',
   fontSize: 16,
