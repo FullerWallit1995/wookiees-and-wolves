@@ -1,14 +1,21 @@
 import type { User } from '@supabase/supabase-js';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useRouter,
+} from 'expo-router';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import {
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -21,36 +28,75 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState('');
 const [username, setUsername] = useState('');
+const [avatarUrl, setAvatarUrl] =
+  useState<string | null>(null);
 const [profileExists, setProfileExists] = useState(false);
 const [likesCount, setLikesCount] = useState(0);
 const [pollsVotedCount, setPollsVotedCount] = useState(0);
+const [predictorRecord, setPredictorRecord] =
+  useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+const [predictorRank, setPredictorRank] =
+  useState<number | null>(null);
 
-      setUser(user);
+const [predictorEntries, setPredictorEntries] =
+  useState(0);
 
-if (user) {
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('display_name, username')
-    .eq('user_id', user.id)
-    .maybeSingle();
+const [predictorAccuracy, setPredictorAccuracy] =
+  useState<number | null>(null);
 
-  if (error) {
-    console.log('Could not load profile:', error);
+const [predictorGraded, setPredictorGraded] =
+  useState(0);
+
+  const loadUser = useCallback(async () => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  setUser(user);
+
+  if (!user) {
+    setDisplayName('');
+    setUsername('');
+    setAvatarUrl(null);
+    setProfileExists(false);
+    setLikesCount(0);
+    setPollsVotedCount(0);
+    setPredictorRecord(null);
+    setPredictorRank(null);
+    setPredictorEntries(0);
+    setPredictorAccuracy(null);
+    setPredictorGraded(0);
+    setLoading(false);
+    return;
+  }
+
+  const { data: profile, error: profileError } =
+    await supabase
+      .from('profiles')
+      .select('display_name, username, avatar_url')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+  if (profileError) {
+    console.log(
+      'Could not load profile:',
+      profileError
+    );
   }
 
   if (profile) {
     setDisplayName(profile.display_name ?? '');
     setUsername(profile.username ?? '');
+    setAvatarUrl(profile.avatar_url ?? null);
     setProfileExists(true);
+  } else {
+    setDisplayName('');
+    setUsername('');
+    setAvatarUrl(null);
+    setProfileExists(false);
   }
-}
-if (user) {
+
   const { count: likesCount, error: likesError } =
     await supabase
       .from('post_likes')
@@ -86,79 +132,130 @@ if (user) {
   } else {
     setPollsVotedCount(votesCount ?? 0);
   }
-}
-setLoading(false);
+
+  const {
+    data: predictionData,
+    error: predictionError,
+  } = await supabase
+    .from('predictor_predictions')
+    .select('predictions, submitted_at')
+    .eq('user_id', user.id)
+    .eq('season', '2026-27')
+    .maybeSingle();
+
+  if (predictionError) {
+    console.log(
+      'Could not load profile Predictor entry:',
+      predictionError
+    );
+  } else if (
+    predictionData?.submitted_at &&
+    predictionData.predictions
+  ) {
+    const picks =
+      predictionData.predictions as Record<
+        string,
+        'W' | 'L'
+      >;
+
+    const values = Object.values(picks);
+
+    const wins = values.filter(
+      (pick) => pick === 'W'
+    ).length;
+
+    const losses = values.filter(
+      (pick) => pick === 'L'
+    ).length;
+
+    setPredictorRecord(`${wins}–${losses}`);
+  } else {
+    setPredictorRecord(null);
+  }
+
+  const {
+    data: leaderboardData,
+    error: leaderboardError,
+  } = await supabase.rpc(
+    'get_predictor_leaderboard',
+    {
+      target_season: '2026-27',
     }
-
-    loadUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-async function saveProfile() {
-  if (!user) {
-    return;
-  }
-
-  const cleanDisplayName = displayName.trim();
-  const cleanUsername = username
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '');
-
-  if (!cleanDisplayName || !cleanUsername) {
-    Alert.alert(
-      'Missing information',
-      'Enter both a display name and username.'
-    );
-    return;
-  }
-
-  const { error } = await supabase
-    .from('profiles')
-    .upsert(
-      {
-        user_id: user.id,
-        display_name: cleanDisplayName,
-        username: cleanUsername,
-      },
-      {
-        onConflict: 'user_id',
-      }
-    );
-
-  if (error) {
-    if (error.code === '23505') {
-      Alert.alert(
-        'Username unavailable',
-        'That username is already being used.'
-      );
-      return;
-    }
-
-    Alert.alert(
-      'Could not save profile',
-      error.message
-    );
-    return;
-  }
-
-  setDisplayName(cleanDisplayName);
-  setUsername(cleanUsername);
-  setProfileExists(true);
-
-  Alert.alert(
-    'Profile saved',
-    'Your Wookiees & Wolves profile is ready.'
   );
-}
+
+  if (leaderboardError) {
+    console.log(
+      'Could not load profile Predictor rank:',
+      leaderboardError
+    );
+  } else {
+    const leaderboard = leaderboardData ?? [];
+
+    setPredictorEntries(leaderboard.length);
+
+    const userIndex = leaderboard.findIndex(
+      (entry: { user_id: string }) =>
+        entry.user_id === user.id
+    );
+
+    if (userIndex >= 0) {
+      const entry = leaderboard[userIndex];
+
+      setPredictorRank(userIndex + 1);
+      setPredictorGraded(
+        Number(entry.graded) || 0
+      );
+
+      setPredictorAccuracy(
+        Number(entry.graded) > 0
+          ? Number(entry.accuracy)
+          : null
+      );
+    } else {
+      setPredictorRank(null);
+      setPredictorGraded(0);
+      setPredictorAccuracy(null);
+    }
+  }
+
+  setLoading(false);
+}, []);
+
+useFocusEffect(
+  useCallback(() => {
+    loadUser();
+  }, [loadUser])
+);
+
+useEffect(() => {
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
+      setUser(session?.user ?? null);
+
+      if (!session?.user) {
+        setDisplayName('');
+        setUsername('');
+        setAvatarUrl(null);
+        setProfileExists(false);
+        setLikesCount(0);
+        setPollsVotedCount(0);
+        setPredictorRecord(null);
+        setPredictorRank(null);
+        setPredictorEntries(0);
+        setPredictorAccuracy(null);
+        setPredictorGraded(0);
+        setLoading(false);
+      }
+    }
+  );
+
+  return () => {
+    subscription.unsubscribe();
+  };
+}, []);
+
   async function signOut() {
     Alert.alert(
       'Sign out?',
@@ -283,11 +380,20 @@ async function saveProfile() {
         <Text style={styles.eyebrow}>YOUR W&W</Text>
         <Text style={styles.title}>Profile</Text>
 
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {email.charAt(0).toUpperCase()}
-          </Text>
-        </View>
+        {avatarUrl ? (
+  <Image
+    source={{ uri: avatarUrl }}
+    style={styles.avatarImage}
+  />
+) : (
+  <View style={styles.avatar}>
+    <Text style={styles.avatarText}>
+      {(displayName || email)
+        .charAt(0)
+        .toUpperCase()}
+    </Text>
+  </View>
+)}
 
         <Text style={styles.email}>
   {profileExists && displayName
@@ -308,76 +414,131 @@ async function saveProfile() {
 <Text style={styles.memberSince}>
   Member since {memberSince}
 </Text>
-<View style={styles.profileCard}>
-  <Text style={styles.accountLabel}>
-    W&W PROFILE
+
+
+
+  <Pressable
+  style={styles.editProfileButton}
+  onPress={() => router.push('/edit-profile')}
+>
+  <Text style={styles.editProfileButtonText}>
+    EDIT PROFILE
   </Text>
+</Pressable>
+<Text style={styles.dashboardSectionLabel}>
+  THE DEN
+</Text>
+<View style={styles.denProfileCard}>
+  <View style={styles.denStatsRow}>
+    <View style={styles.stat}>
+      <Text style={styles.statNumber}>
+        {likesCount}
+      </Text>
 
-  <Text style={styles.fieldLabel}>
-    DISPLAY NAME
-  </Text>
+      <Text style={styles.statLabel}>
+        POSTS LIKED
+      </Text>
+    </View>
 
-  <TextInput
-    style={styles.input}
-    value={displayName}
-    onChangeText={setDisplayName}
-    placeholder="Austin"
-    placeholderTextColor="#53697B"
-    maxLength={40}
-  />
+    <View style={styles.divider} />
 
-  <Text style={styles.fieldLabel}>
-    USERNAME
-  </Text>
+    <View style={styles.stat}>
+      <Text style={styles.statNumber}>
+        {pollsVotedCount}
+      </Text>
 
-  <View style={styles.usernameInputRow}>
-    <Text style={styles.atSymbol}>@</Text>
-
-    <TextInput
-      style={styles.usernameInput}
-      value={username}
-      onChangeText={setUsername}
-      placeholder="austin"
-      placeholderTextColor="#53697B"
-      autoCapitalize="none"
-      autoCorrect={false}
-      maxLength={24}
-    />
+      <Text style={styles.statLabel}>
+        POLLS VOTED
+      </Text>
+    </View>
   </View>
 
   <Pressable
-    style={styles.saveButton}
-    onPress={saveProfile}
+    style={styles.denProfileButton}
+    onPress={() => router.push('/den')}
   >
-    <Text style={styles.saveButtonText}>
-      {profileExists
-        ? 'SAVE CHANGES'
-        : 'SET UP PROFILE'}
+    <Text style={styles.denProfileButtonText}>
+      VIEW THE DEN
     </Text>
   </Pressable>
 </View>
-        <View style={styles.statsCard}>
-  <View style={styles.stat}>
-    <Text style={styles.statNumber}>
-      {likesCount}
-    </Text>
+<Text style={styles.dashboardSectionLabel}>
+  WOLVES PREDICTOR
+</Text>
 
-    <Text style={styles.statLabel}>
-      POSTS LIKED
-    </Text>
-  </View>
+<View style={styles.predictorProfileCard}>
+  {predictorRecord ? (
+    <>
+      <View style={styles.predictorProfileRow}>
+        <Text style={styles.predictorProfileLabel}>
+          PREDICTED RECORD
+        </Text>
 
-  <View style={styles.divider} />
+        <Text style={styles.predictorProfileValue}>
+          {predictorRecord}
+        </Text>
+      </View>
 
-  <View style={styles.stat}>
-    <Text style={styles.statNumber}>
-      {pollsVotedCount}
-    </Text>
+      <View style={styles.predictorProfileDivider} />
 
-    <Text style={styles.statLabel}>
-      POLLS VOTED
-    </Text>
-  </View>
+      <View style={styles.predictorProfileRow}>
+        <Text style={styles.predictorProfileLabel}>
+          CURRENT RANK
+        </Text>
+
+        <Text style={styles.predictorProfileValue}>
+          {predictorRank
+            ? `#${predictorRank} of ${predictorEntries}`
+            : '—'}
+        </Text>
+      </View>
+
+      <View style={styles.predictorProfileDivider} />
+
+      <View style={styles.predictorProfileRow}>
+        <Text style={styles.predictorProfileLabel}>
+          ACCURACY
+        </Text>
+
+        <Text style={styles.predictorProfileValue}>
+          {predictorAccuracy !== null
+            ? `${predictorAccuracy.toFixed(1)}%`
+            : predictorGraded > 0
+              ? '0.0%'
+              : '—'}
+        </Text>
+      </View>
+
+      <Pressable
+        style={styles.predictorProfileButton}
+        onPress={() => router.push('/predictor')}
+      >
+        <Text style={styles.predictorProfileButtonText}>
+          VIEW PREDICTOR
+        </Text>
+      </Pressable>
+    </>
+  ) : (
+    <>
+      <Text style={styles.predictorEmptyTitle}>
+        No submitted prediction
+      </Text>
+
+      <Text style={styles.predictorEmptyText}>
+        Complete your season picks to join the W&W
+        Predictor leaderboard.
+      </Text>
+
+      <Pressable
+        style={styles.predictorProfileButton}
+        onPress={() => router.push('/predictor')}
+      >
+        <Text style={styles.predictorProfileButtonText}>
+          OPEN PREDICTOR
+        </Text>
+      </Pressable>
+    </>
+  )}
 </View>
 
         <View style={styles.accountCard}>
@@ -617,7 +778,13 @@ saveButtonText: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-
+avatarImage: {
+  width: 96,
+  height: 96,
+  borderRadius: 48,
+  borderWidth: 2,
+  borderColor: '#75C7F0',
+},
   avatarText: {
     color: '#F3EFE3',
     fontSize: 34,
@@ -645,7 +812,7 @@ saveButtonText: {
     borderColor: '#20354A',
     borderRadius: 18,
     paddingVertical: 20,
-    marginTop: 28,
+    marginTop: 0,
   },
 
   stat: {
@@ -694,7 +861,23 @@ saveButtonText: {
     fontSize: 14,
     marginTop: 7,
   },
+editProfileButton: {
+  backgroundColor: '#162A3C',
+  borderWidth: 1,
+  borderColor: '#2C4A61',
+  borderRadius: 9,
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  marginTop: 14,
+  alignItems: 'center',
+},
 
+editProfileButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
   signOutButton: {
     width: '100%',
     borderWidth: 1,
@@ -705,7 +888,108 @@ saveButtonText: {
     alignItems: 'center',
     marginTop: 22,
   },
+dashboardSectionLabel: {
+  width: '100%',
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+  marginTop: 30,
+  marginBottom: 8,
+},
+predictorProfileCard: {
+  width: '100%',
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+},
 
+predictorProfileRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
+
+predictorProfileLabel: {
+  color: '#7F94A7',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+predictorProfileValue: {
+  color: '#F3EFE3',
+  fontSize: 16,
+  fontWeight: '900',
+},
+
+predictorProfileDivider: {
+  height: 1,
+  backgroundColor: '#20354A',
+  marginVertical: 14,
+},
+
+predictorProfileButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 18,
+},
+
+predictorProfileButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+predictorEmptyTitle: {
+  color: '#F3EFE3',
+  fontSize: 16,
+  fontWeight: '900',
+},
+
+predictorEmptyText: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 5,
+},
+denProfileCard: {
+  width: '100%',
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+},
+
+denStatsRow: {
+  flexDirection: 'row',
+  minHeight: 52,
+},
+
+denProfileButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 18,
+},
+
+denProfileButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
   signOutText: {
     color: '#C98389',
     fontSize: 10,
