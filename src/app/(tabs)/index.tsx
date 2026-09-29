@@ -22,6 +22,7 @@ export default function HomeScreen() {
     latestEpisode,
     loading: episodesLoading,
   } = useEpisodes();
+
 const {
   wins,
   losses,

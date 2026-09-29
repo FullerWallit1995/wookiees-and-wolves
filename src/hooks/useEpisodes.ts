@@ -14,6 +14,14 @@ export type Episode = {
 
 const RSS_URL =
   'https://anchor.fm/s/11561f8bc/podcast/rss';
+  function normalizeTitle(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
 
 const EPISODE_LINKS_URL =
   'https://raw.githubusercontent.com/FullerWallit1995/wookiees-and-wolves/main/src/data/episode-links.json';
@@ -66,15 +74,21 @@ export function useEpisodes() {
           episodeItems.map((item: any, index: number) => {
             const title =
               item.title ?? 'Untitled Episode';
-
+console.log('RSS TITLE:', title);
+console.log(
+  'JSON MATCHES:',
+  episodeLinks.episodes.map(
+    (episode: { match: string }) => episode.match
+  )
+);
            const links = episodeLinks.episodes.find(
   (episode: {
     match: string;
     youtube: string;
     spotify: string;
   }) =>
-    title.trim().toLowerCase() ===
-    episode.match.trim().toLowerCase()
+    normalizeTitle(title) ===
+    normalizeTitle(episode.match)
 );
 
             return {
