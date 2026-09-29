@@ -30,6 +30,8 @@ export default function ProfileScreen() {
 const [username, setUsername] = useState('');
 const [avatarUrl, setAvatarUrl] =
   useState<string | null>(null);
+  const [role, setRole] =
+  useState<'member' | 'admin'>('member');
 const [profileExists, setProfileExists] = useState(false);
 const [likesCount, setLikesCount] = useState(0);
 const [pollsVotedCount, setPollsVotedCount] = useState(0);
@@ -74,7 +76,7 @@ const [predictorGraded, setPredictorGraded] =
   const { data: profile, error: profileError } =
     await supabase
       .from('profiles')
-      .select('display_name, username, avatar_url')
+      .select('display_name, username, avatar_url, role')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -90,11 +92,15 @@ const [predictorGraded, setPredictorGraded] =
     setUsername(profile.username ?? '');
     setAvatarUrl(profile.avatar_url ?? null);
     setProfileExists(true);
+    setRole(
+  profile.role === 'admin' ? 'admin' : 'member'
+);
   } else {
     setDisplayName('');
     setUsername('');
     setAvatarUrl(null);
     setProfileExists(false);
+    setRole('member');
   }
 
   const { count: likesCount, error: likesError } =
@@ -233,6 +239,7 @@ useEffect(() => {
   } = supabase.auth.onAuthStateChange(
     (_event, session) => {
       setUser(session?.user ?? null);
+      setRole('member');
 
       if (!session?.user) {
         setDisplayName('');
@@ -247,6 +254,7 @@ useEffect(() => {
         setPredictorAccuracy(null);
         setPredictorGraded(0);
         setLoading(false);
+        setRole('member');
       }
     }
   );
@@ -395,11 +403,21 @@ useEffect(() => {
   </View>
 )}
 
-        <Text style={styles.email}>
-  {profileExists && displayName
-    ? displayName
-    : email}
-</Text>
+    <View style={styles.profileNameRow}>
+  <Text style={styles.email}>
+    {profileExists && displayName
+      ? displayName
+      : email}
+  </Text>
+
+  {role === 'admin' && (
+    <Image
+      source={require('../../../assets/wookiees-wolves-logo.png')}
+      style={styles.adminMark}
+      resizeMode="contain"
+    />
+  )}
+</View>
 
 {profileExists && username ? (
   <Text style={styles.username}>
@@ -744,7 +762,18 @@ saveButtonText: {
     fontWeight: '900',
     letterSpacing: 1,
   },
+profileNameRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 7,
+  marginTop: 16,
+},
 
+adminMark: {
+  width: 24,
+  height: 24,
+},
   infoCard: {
     width: '100%',
     backgroundColor: '#101D2B',
@@ -795,7 +824,6 @@ avatarImage: {
     color: '#F3EFE3',
     fontSize: 19,
     fontWeight: '800',
-    marginTop: 16,
   },
 
   memberSince: {
