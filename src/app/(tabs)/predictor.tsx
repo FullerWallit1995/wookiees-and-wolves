@@ -9,7 +9,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 type Prediction = 'W' | 'L';
@@ -22,6 +22,7 @@ type Game = {
   month: string;
   available?: boolean;
   note?: string;
+  picksLockAt?: string;
 };
 
 
@@ -42,10 +43,6 @@ const [gamesLoaded, setGamesLoaded] = useState(false);
 const [results, setResults] = useState<
   Record<number, Prediction>
 >({});
-const [lockAt, setLockAt] = useState<string | null>(null);
-const [seasonLoaded, setSeasonLoaded] = useState(false);
-const [submittedAt, setSubmittedAt] =
-  useState<string | null>(null);
   const [predictions, setPredictions] = useState<
     Record<number, Prediction>
   >({});
@@ -77,14 +74,15 @@ useEffect(() => {
 
     if (data && data.length > 0) {
       const formattedGames: Game[] = data.map((game) => ({
-        id: game.game_id,
-        date: game.game_date,
-        opponent: game.opponent,
-        location: game.location ?? undefined,
-        month: game.month,
-        available: game.available,
-                note: game.note ?? undefined,
-      }));
+  id: game.game_id,
+  date: game.game_date,
+  opponent: game.opponent,
+  location: game.location ?? undefined,
+  month: game.month,
+  available: game.available,
+  note: game.note ?? undefined,
+  picksLockAt: game.picks_lock_at ?? undefined,
+}));
 
       setGames(formattedGames);
     }
@@ -123,31 +121,7 @@ useEffect(() => {
 
   loadResults();
 }, []);
-useEffect(() => {
-  async function loadSeason() {
-    const { data, error } = await supabase
-      .from('predictor_seasons')
-      .select('lock_at')
-      .eq('season', '2026-27')
-      .eq('is_active', true)
-      .maybeSingle();
 
-    if (error) {
-      console.log(
-        'Could not load Predictor season:',
-        error
-      );
-
-      setSeasonLoaded(true);
-      return;
-    }
-
-    setLockAt(data?.lock_at ?? null);
-    setSeasonLoaded(true);
-  }
-
-  loadSeason();
-}, []);
 useEffect(() => {
   async function loadUser() {
     const {
@@ -208,7 +182,7 @@ useEffect(() => {
   }
 
   loadRank();
-}, [user, submittedAt, results]);
+}, [user, results]);
 useEffect(() => {
   async function loadPredictions() {
     try {
@@ -236,7 +210,7 @@ useEffect(() => {
 
     const { data: cloudData, error } = await supabase
       .from('predictor_predictions')
-      .select('predictions, submitted_at')
+      .select('predictions')
       .eq('user_id', user.id)
       .eq('season', '2026-27')
       .maybeSingle();
@@ -248,7 +222,6 @@ useEffect(() => {
       );
       return;
     }
-setSubmittedAt(cloudData?.submitted_at ?? null);
     if (cloudData?.predictions) {
       const cloudPredictions =
         cloudData.predictions as Record<number, Prediction>;
@@ -300,45 +273,7 @@ useEffect(() => {
 
   savePredictions();
 }, [predictions, predictionsLoaded]);
-useEffect(() => {
-  async function savePredictionsToCloud() {
-    if (
-      !user ||
-      !predictionsLoaded ||
-      !cloudLoaded
-    ) {
-      return;
-    }
 
-    const { error } = await supabase
-      .from('predictor_predictions')
-      .upsert(
-        {
-          user_id: user.id,
-          season: '2026-27',
-          predictions,
-          updated_at: new Date().toISOString(),
-        },
-        {
-          onConflict: 'user_id,season',
-        }
-      );
-
-    if (error) {
-      console.log(
-        'Could not save cloud predictions:',
-        error
-      );
-    }
-  }
-
-  savePredictionsToCloud();
-}, [
-  predictions,
-  user,
-  predictionsLoaded,
-  cloudLoaded,
-]);
 const [expandedMonths, setExpandedMonths] = useState<
   Record<string, boolean>
 >({
@@ -415,7 +350,38 @@ return {
 }
 
   const predicted = wins + losses;
-  const remaining = 82 - predicted;
+  const openGames = games.filter(
+  (game) =>
+    game.available !== false &&
+    !isGameLocked(game) &&
+    !results[game.id]
+);
+
+const openGameCount = openGames.length;
+
+const openUnpickedCount = openGames.filter(
+  (game) => !predictions[game.id]
+).length;
+
+const nextLockGame = [...openGames]
+  .filter((game) => !!game.picksLockAt)
+  .sort(
+    (a, b) =>
+      new Date(a.picksLockAt!).getTime() -
+      new Date(b.picksLockAt!).getTime()
+  )[0];
+
+const nextLockFormatted = nextLockGame?.picksLockAt
+  ? new Date(nextLockGame.picksLockAt).toLocaleString(
+      'en-US',
+      {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      }
+    )
+  : null;
   const gradedGameIds = Object.keys(results).map(Number);
 
 const correctPicks = gradedGameIds.filter(
@@ -436,51 +402,122 @@ const accuracy =
   gradedPicks > 0
     ? Math.round((correctPicks / gradedPicks) * 1000) / 10
     : 0;
+    function isGameLocked(game: Game) {
+  if (game.available === false) {
+    return true;
+  }
+
+  if (!game.picksLockAt) {
+    return true;
+  }
+
+  return new Date() >= new Date(game.picksLockAt);
+}
   const availableGames = games.filter(
   (game) => game.available !== false
 );
 
-const availableGameCount = availableGames.length;
 
-const availablePredictedCount = availableGames.filter(
-  (game) => !!predictions[game.id]
-).length;
 
-const readyToSubmit =
-  availableGameCount > 0 &&
-  availablePredictedCount === availableGameCount;
-  const isLocked =
-  !!lockAt && new Date() >= new Date(lockAt);
-
-const formattedLockDate = lockAt
-  ? new Date(lockAt).toLocaleString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      timeZoneName: 'short',
-    })
-  : null;
-
- function makePrediction(
-  gameId: number,
+ async function makePrediction(
+  
+  game: Game,
   prediction: Prediction
 ) {
-if (isLocked || results[gameId]) {
-  return;
-}
+  function clearOpenPredictions() {
+  const openPickedGames = games.filter(
+    (game) =>
+      !isGameLocked(game) &&
+      !results[game.id] &&
+      !!predictions[game.id]
+  );
 
-  setPredictions((current) => ({
-    ...current,
-    [gameId]: prediction,
-  }));
-}
-  async function submitPredictions() {
-  if (!user || isLocked || !readyToSubmit) {
+  if (openPickedGames.length === 0) {
+    Alert.alert(
+      'No open picks',
+      'You do not have any open picks to clear.'
+    );
     return;
   }
 
-  const now = new Date().toISOString();
+  Alert.alert(
+    'Clear open picks?',
+    `This will remove ${openPickedGames.length} ${
+      openPickedGames.length === 1 ? 'pick' : 'picks'
+    } from games that are still open. Locked picks will not be changed.`,
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Clear Picks',
+        style: 'destructive',
+        onPress: async () => {
+          const nextPredictions = {
+            ...predictions,
+          };
+
+          openPickedGames.forEach((game) => {
+            delete nextPredictions[game.id];
+          });
+
+          if (!user) {
+            setPredictions(nextPredictions);
+            return;
+          }
+
+          const { error } = await supabase
+            .from('predictor_predictions')
+            .upsert(
+              {
+                user_id: user.id,
+                season: '2026-27',
+                predictions: nextPredictions,
+                updated_at: new Date().toISOString(),
+              },
+              {
+                onConflict: 'user_id,season',
+              }
+            );
+
+          if (error) {
+            console.log(
+              'Could not clear open predictions:',
+              error
+            );
+
+            Alert.alert(
+              'Could not clear picks',
+              'Your picks were not changed. Please try again.'
+            );
+
+            return;
+          }
+
+          setPredictions(nextPredictions);
+        },
+      },
+    ]
+  );
+}
+  if (
+    isGameLocked(game) ||
+    results[game.id]
+  ) {
+    return;
+  }
+
+  const nextPredictions = {
+    ...predictions,
+    [game.id]: prediction,
+  };
+
+  // Signed-out users can still make local picks.
+  if (!user) {
+    setPredictions(nextPredictions);
+    return;
+  }
 
   const { error } = await supabase
     .from('predictor_predictions')
@@ -488,9 +525,8 @@ if (isLocked || results[gameId]) {
       {
         user_id: user.id,
         season: '2026-27',
-        predictions,
-        submitted_at: now,
-        updated_at: now,
+        predictions: nextPredictions,
+        updated_at: new Date().toISOString(),
       },
       {
         onConflict: 'user_id,season',
@@ -498,47 +534,99 @@ if (isLocked || results[gameId]) {
     );
 
   if (error) {
+    console.log(
+      'Could not save prediction:',
+      error
+    );
+
     Alert.alert(
-      'Could not submit picks',
-      error.message
+      'Pick not saved',
+      'That game may have locked. Your previous pick has been kept.'
+    );
+
+    return;
+  }
+
+  setPredictions(nextPredictions);
+}
+ function clearOpenPredictions() {
+  const openPickedGames = games.filter(
+    (game) =>
+      !isGameLocked(game) &&
+      !results[game.id] &&
+      !!predictions[game.id]
+  );
+
+  if (openPickedGames.length === 0) {
+    Alert.alert(
+      'No open picks',
+      'You do not have any open picks to clear.'
     );
     return;
   }
 
-  setSubmittedAt(now);
-
   Alert.alert(
-    'Picks submitted',
-    'Your predictions are in. You can still make changes and resubmit until the deadline.'
-  );
-}
-  function resetPredictions() {
-  Alert.alert(
-    'Reset all predictions?',
-    'This will remove all of your picks for the 2026–27 season. This can’t be undone.',
+    'Clear open picks?',
+    `This will remove ${openPickedGames.length} ${
+      openPickedGames.length === 1 ? 'pick' : 'picks'
+    } from games that are still open. Locked picks will not be changed.`,
     [
       {
         text: 'Cancel',
         style: 'cancel',
       },
       {
-        text: 'Reset',
+        text: 'Clear Picks',
         style: 'destructive',
         onPress: async () => {
-          setPredictions({});
+          const nextPredictions = {
+            ...predictions,
+          };
 
-          try {
-            await AsyncStorage.removeItem(
-              'wolves-predictions-2026-27'
-            );
-          } catch (error) {
-            console.log('Could not reset predictions:', error);
+          openPickedGames.forEach((game) => {
+            delete nextPredictions[game.id];
+          });
+
+          if (!user) {
+            setPredictions(nextPredictions);
+            return;
           }
+
+          const { error } = await supabase
+            .from('predictor_predictions')
+            .upsert(
+              {
+                user_id: user.id,
+                season: '2026-27',
+                predictions: nextPredictions,
+                updated_at: new Date().toISOString(),
+              },
+              {
+                onConflict: 'user_id,season',
+              }
+            );
+
+          if (error) {
+            console.log(
+              'Could not clear open predictions:',
+              error
+            );
+
+            Alert.alert(
+              'Could not clear picks',
+              'Your picks were not changed. Please try again.'
+            );
+
+            return;
+          }
+
+          setPredictions(nextPredictions);
         },
       },
     ]
   );
 }
+ 
 if (!gamesLoaded) {
   return (
     <SafeAreaView style={styles.container}>
@@ -563,27 +651,7 @@ if (!gamesLoaded) {
         <Text style={styles.subtitle}>
           Pick every game and build your predicted Wolves record.
         </Text>
-      <View
-  style={[
-    styles.deadlineCard,
-    isLocked && styles.deadlineCardLocked,
-  ]}
->
-  <Text style={styles.deadlineLabel}>
-    {isLocked ? 'PICKS LOCKED' : 'PICKS LOCK'}
-  </Text>
-
-  <Text style={styles.deadlineText}>
-    {formattedLockDate ??
-      'Deadline information unavailable'}
-  </Text>
-
-  {!isLocked && (
-    <Text style={styles.deadlineNote}>
-      You can change your predictions until the deadline.
-    </Text>
-  )}
-</View>
+      
         {/* RECORD */}
         <View style={styles.recordCard}>
           <Text style={styles.recordLabel}>
@@ -610,12 +678,73 @@ if (!gamesLoaded) {
             <View style={styles.divider} />
 
             <View style={styles.stat}>
-              <Text style={styles.statNumber}>{remaining}</Text>
-              <Text style={styles.statLabel}>LEFT</Text>
+              <Text style={styles.statNumber}>{predicted}</Text>
+<Text style={styles.statLabel}>PICKS</Text>
             </View>
           </View>
         </View>
-{gradedPicks > 0 && !isLocked && (
+{/* LIVE PREDICTOR STATUS */}
+<View style={styles.predictorStatusCard}>
+  <View style={styles.predictorStatusRow}>
+    <View style={styles.predictorStatusStat}>
+      <Text style={styles.predictorStatusNumber}>
+        {predicted}
+      </Text>
+      <Text style={styles.predictorStatusLabel}>
+        PICKS MADE
+      </Text>
+    </View>
+
+    <View style={styles.divider} />
+
+    <View style={styles.predictorStatusStat}>
+      <Text style={styles.predictorStatusNumber}>
+        {openGameCount}
+      </Text>
+      <Text style={styles.predictorStatusLabel}>
+        GAMES OPEN
+      </Text>
+    </View>
+
+    <View style={styles.divider} />
+
+    <View style={styles.predictorStatusStat}>
+      <Text style={styles.predictorStatusNumber}>
+        {openUnpickedCount}
+      </Text>
+      <Text style={styles.predictorStatusLabel}>
+        NEED PICKS
+      </Text>
+    </View>
+  </View>
+</View>
+
+{nextLockGame && (
+  <View style={styles.nextLockCard}>
+    <Text style={styles.nextLockEyebrow}>
+      NEXT PICK LOCK
+    </Text>
+
+    <Text style={styles.nextLockOpponent}>
+      {nextLockGame.location === 'HOME'
+        ? 'vs.'
+        : '@'}{' '}
+      {nextLockGame.opponent}
+    </Text>
+
+    <Text style={styles.nextLockTime}>
+      {nextLockFormatted}
+    </Text>
+
+    <Text style={styles.nextLockPick}>
+      {predictions[nextLockGame.id]
+        ? `YOUR PICK: ${predictions[nextLockGame.id]}`
+        : 'NO PICK YET'}
+    </Text>
+  </View>
+)}
+
+{gradedPicks > 0 && (
   <View style={styles.accuracyCard}>
     <View style={styles.accuracyHeader}>
       <View>
@@ -640,7 +769,6 @@ if (!gamesLoaded) {
         <Text style={styles.correctNumber}>
           {correctPicks}
         </Text>
-
         <Text style={styles.accuracyStatLabel}>
           CORRECT
         </Text>
@@ -652,7 +780,6 @@ if (!gamesLoaded) {
         <Text style={styles.incorrectNumber}>
           {incorrectPicks}
         </Text>
-
         <Text style={styles.accuracyStatLabel}>
           INCORRECT
         </Text>
@@ -660,6 +787,7 @@ if (!gamesLoaded) {
     </View>
   </View>
 )}
+
 <Pressable
   style={styles.leaderboardButton}
   onPress={() => router.push('/leaderboard')}
@@ -674,185 +802,8 @@ if (!gamesLoaded) {
     </Text>
   </View>
 
-  <Text style={styles.leaderboardArrow}>
-    ›
-  </Text>
+  <Text style={styles.leaderboardArrow}>›</Text>
 </Pressable>
-{!isLocked && (
-  <>
-        {/* PROGRESS */}
-        
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressText}>
-            {predicted} of 82 games predicted
-          </Text>
-
-          <Text style={styles.progressPercent}>
-            {Math.round((predicted / 82) * 100)}%
-          </Text>
-        </View>
-
-        <View style={styles.progressTrack}>
-          <View
-            style={[
-              styles.progressFill,
-              { width: `${(predicted / 82) * 100}%` },
-            ]}
-          />
-        </View>
-        <View style={styles.submitCard}>
-  {isLocked ? (
-    <>
-      <Text style={styles.submitStatus}>
-        PICKS LOCKED
-      </Text>
-
-      <Text style={styles.submitTitle}>
-        {wins}–{losses}
-      </Text>
-
-      <Text style={styles.submitDescription}>
-        Your 2026–27 predictions are locked.
-      </Text>
-    </>
-  ) : submittedAt ? (
-    <>
-      <Text style={styles.submitStatus}>
-        ✓ PICKS SUBMITTED
-      </Text>
-
-      <Text style={styles.submitDescription}>
-        You can still change your picks and resubmit
-        before the deadline.
-      </Text>
-
-      <Pressable
-        style={styles.submitButton}
-        onPress={submitPredictions}
-        disabled={!readyToSubmit}
-      >
-        <Text style={styles.submitButtonText}>
-          RESUBMIT PICKS
-        </Text>
-      </Pressable>
-    </>
-  ) : (
-    <>
-      <Text style={styles.submitStatus}>
-        {readyToSubmit
-          ? 'READY TO SUBMIT'
-          : 'COMPLETE YOUR PICKS'}
-      </Text>
-
-      <Text style={styles.submitDescription}>
-        {availablePredictedCount} of {availableGameCount}{' '}
-        available games picked
-      </Text>
-
-      <Pressable
-        style={[
-          styles.submitButton,
-          !readyToSubmit &&
-            styles.submitButtonDisabled,
-        ]}
-        onPress={submitPredictions}
-        disabled={!readyToSubmit}
-      >
-        <Text style={styles.submitButtonText}>
-          SUBMIT PICKS
-        </Text>
-      </Pressable>
-    </>
-  )}
-</View>
-        {predicted > 0 && (
-  
-  <Pressable
-    style={styles.resetButton}
-    onPress={resetPredictions}
-  >
-    <Text style={styles.resetButtonText}>
-      RESET PICKS
-    </Text>
-  </Pressable>
-)}
-  </>
-)}
-{isLocked && (
-  <View style={styles.seasonStatusCard}>
-    <Text style={styles.seasonStatusEyebrow}>
-      SEASON PERFORMANCE
-    </Text>
-
-    {gradedPicks > 0 ? (
-      <>
-        <Text style={styles.seasonAccuracy}>
-          {accuracy}%
-        </Text>
-
-        <Text style={styles.seasonAccuracyLabel}>
-          PREDICTION ACCURACY
-        </Text>
-
-        <View style={styles.seasonStats}>
-          <View style={styles.seasonStat}>
-            <Text style={styles.correctNumber}>
-              {correctPicks}
-            </Text>
-            <Text style={styles.accuracyStatLabel}>
-              CORRECT
-            </Text>
-          </View>
-          <View style={styles.divider} />
-
-          <View style={styles.seasonStat}>
-            <Text style={styles.incorrectNumber}>
-              {incorrectPicks}
-            </Text>
-            <Text style={styles.accuracyStatLabel}>
-              INCORRECT
-            </Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.seasonStat}>
-            <Text style={styles.statNumber}>
-              {gradedPicks}
-            </Text>
-            <Text style={styles.accuracyStatLabel}>
-              GRADED
-            </Text>
-          </View>
-        </View>
-      </>
-    ) : (
-      <Text style={styles.waitingText}>
-        Results will appear here as games are completed.
-      </Text>
-    )}
-    {currentRank && (
-  <View style={styles.rankSummary}>
-    <View>
-      <Text style={styles.rankSummaryLabel}>
-        CURRENT RANK
-      </Text>
-
-      <Text style={styles.rankSummaryNumber}>
-        #{currentRank}
-      </Text>
-    </View>
-
-    <Text style={styles.rankSummaryTotal}>
-      of {leaderboardCount}{' '}
-      {leaderboardCount === 1
-        ? 'entry'
-        : 'entries'}
-    </Text>
-  </View>
-)}
-  </View>
-)}
 {/* SCHEDULE */}
 <View style={styles.gamesHeader}>
   <View>
@@ -933,7 +884,7 @@ const wasCorrect =
   prediction &&
   actualResult === prediction;
   const gameLocked =
-  isLocked || !!actualResult;
+  isGameLocked(game) || !!actualResult;
 
           return (
             <View key={game.id} style={styles.gameCard}>
@@ -965,7 +916,7 @@ const wasCorrect =
   {game.opponent}
 </Text>
 
-{isLocked && prediction && (
+{gameLocked && prediction && (
   <Text style={styles.lockedPickText}>
     YOUR PICK: {prediction}
   </Text>
@@ -1011,7 +962,7 @@ disabled={
   (gameLocked && prediction !== 'W')) &&
   styles.disabledPickButton,
   ]}
-  onPress={() => makePrediction(game.id, 'W')}
+  onPress={() => makePrediction(game, 'W')}
 >
                   <Text
                     style={[
@@ -1034,7 +985,7 @@ disabled={
   (gameLocked && prediction !== 'L')) &&
   styles.disabledPickButton,
   ]}
-  onPress={() => makePrediction(game.id, 'L')}
+  onPress={() => makePrediction(game, 'L')}
 >
                   <Text
                     style={[
@@ -1053,7 +1004,16 @@ disabled={
     </View>
   );
 })}
-
+{predicted > 0 && (
+  <Pressable
+    style={styles.clearPicksButton}
+    onPress={clearOpenPredictions}
+  >
+    <Text style={styles.clearPicksButtonText}>
+      CLEAR OPEN PICKS
+    </Text>
+  </Pressable>
+)}
 
       </ScrollView>
     </SafeAreaView>
@@ -1456,7 +1416,75 @@ deadlineLabel: {
   fontWeight: '900',
   letterSpacing: 1.5,
 },
+predictorStatusCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 16,
+  padding: 17,
+  marginTop: 14,
+},
 
+predictorStatusRow: {
+  flexDirection: 'row',
+},
+
+predictorStatusStat: {
+  flex: 1,
+  alignItems: 'center',
+},
+
+predictorStatusNumber: {
+  color: '#F3EFE3',
+  fontSize: 20,
+  fontWeight: '900',
+},
+
+predictorStatusLabel: {
+  color: '#7F94A7',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.9,
+  marginTop: 3,
+},
+
+nextLockCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 16,
+  padding: 17,
+  marginTop: 14,
+},
+
+nextLockEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+nextLockOpponent: {
+  color: '#F3EFE3',
+  fontSize: 20,
+  fontWeight: '900',
+  marginTop: 5,
+},
+
+nextLockTime: {
+  color: '#8FA2B3',
+  fontSize: 12,
+  fontWeight: '700',
+  marginTop: 3,
+},
+
+nextLockPick: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+  marginTop: 10,
+},
 deadlineText: {
   color: '#F3EFE3',
   fontSize: 16,
@@ -1696,7 +1724,23 @@ rankSummaryNumber: {
   fontWeight: '900',
   marginTop: 2,
 },
+clearPicksButton: {
+  alignSelf: 'center',
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  marginTop: 14,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#55383D',
+  backgroundColor: '#21181D',
+},
 
+clearPicksButtonText: {
+  color: '#C98389',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
 rankSummaryTotal: {
   color: '#8FA2B3',
   fontSize: 11,

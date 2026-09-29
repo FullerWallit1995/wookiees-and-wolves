@@ -19,6 +19,7 @@ type LeaderboardEntry = {
   incorrect: number;
   graded: number;
   accuracy: number;
+  qualified: boolean;
 };
 
 export default function LeaderboardScreen() {
@@ -29,6 +30,8 @@ export default function LeaderboardScreen() {
     useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [completedGames, setCompletedGames] =
+  useState(0);
 
   useEffect(() => {
     async function loadLeaderboard() {
@@ -41,6 +44,26 @@ export default function LeaderboardScreen() {
         } = await supabase.auth.getUser();
 
         setCurrentUserId(user?.id ?? null);
+        const {
+  count: completedCount,
+  error: resultsError,
+} = await supabase
+  .from('predictor_results')
+  .select('*', {
+    count: 'exact',
+    head: true,
+  })
+  .eq('season', '2026-27')
+  .eq('final', true);
+
+if (resultsError) {
+  console.log(
+    'Could not load completed game count:',
+    resultsError
+  );
+} else {
+  setCompletedGames(completedCount ?? 0);
+}
 
         const { data, error } = await supabase.rpc(
           'get_predictor_leaderboard',
@@ -94,7 +117,7 @@ export default function LeaderboardScreen() {
         <Text style={styles.subtitle}>
           See who's calling the Wolves season best.
         </Text>
-
+{completedGames >= 10 && (
         <View style={styles.headerRow}>
           <Text style={[styles.headerText, styles.rankColumn]}>
             RANK
@@ -105,95 +128,153 @@ export default function LeaderboardScreen() {
           </Text>
 
           <Text style={[styles.headerText, styles.scoreColumn]}>
-            CORRECT
-          </Text>
+  GRADED
+</Text>
 
           <Text style={[styles.headerText, styles.accuracyColumn]}>
             ACC.
           </Text>
         </View>
+)}
 
-        {loading ? (
-          <View style={styles.statusCard}>
-            <Text style={styles.statusText}>
-              Loading leaderboard...
+      {loading ? (
+  <View style={styles.statusCard}>
+    <Text style={styles.statusText}>
+      Loading leaderboard...
+    </Text>
+  </View>
+) : error ? (
+  <View style={styles.statusCard}>
+    <Text style={styles.statusText}>
+      Couldn't load the leaderboard.
+    </Text>
+  </View>
+) : completedGames < 10 ? (
+  <View style={styles.statusCard}>
+    <Text style={styles.unlockEyebrow}>
+      LEADERBOARD OPENS AFTER GAME 10
+    </Text>
+
+    <Text style={styles.unlockNumber}>
+      {completedGames}/10
+    </Text>
+
+    <Text style={styles.statusText}>
+      The leaderboard will open once the Wolves
+      have completed 10 games.
+    </Text>
+
+    <View style={styles.unlockTrack}>
+      <View
+        style={[
+          styles.unlockFill,
+          {
+            width: `${Math.min(
+              (completedGames / 10) * 100,
+              100
+            )}%`,
+          },
+        ]}
+      />
+    </View>
+  </View>
+) : entries.length === 0 ? (
+  <View style={styles.statusCard}>
+    <Text style={styles.emptyTitle}>
+      No Predictor activity yet
+    </Text>
+
+    <Text style={styles.statusText}>
+      Members will appear here once their picks begin
+      getting graded.
+    </Text>
+  </View>
+) : (
+  entries.map((entry, index) => {
+    const isCurrentUser =
+      entry.user_id === currentUserId;
+
+    const qualifiedRank =
+      entry.qualified
+        ? entries
+            .filter((item) => item.qualified)
+            .findIndex(
+              (item) =>
+                item.user_id === entry.user_id
+            ) + 1
+        : null;
+
+    const picksNeeded = Math.max(
+      0,
+      10 - Number(entry.graded)
+    );
+
+    return (
+      <View
+        key={entry.user_id}
+        style={[
+          styles.entryCard,
+          isCurrentUser &&
+            styles.currentUserCard,
+        ]}
+      >
+        <View style={styles.rankColumn}>
+          <Text
+            style={[
+              styles.rank,
+              qualifiedRank !== null &&
+                qualifiedRank <= 3 &&
+                styles.topRank,
+            ]}
+          >
+            {entry.qualified
+              ? qualifiedRank
+              : '—'}
+          </Text>
+        </View>
+
+        <View style={styles.userColumn}>
+          <Text style={styles.displayName}>
+            {entry.display_name ||
+              entry.username ||
+              'W&W Member'}
+          </Text>
+
+          {entry.username && (
+            <Text style={styles.username}>
+              @{entry.username}
+              {isCurrentUser ? ' • YOU' : ''}
             </Text>
-          </View>
-        ) : error ? (
-          <View style={styles.statusCard}>
-            <Text style={styles.statusText}>
-              Couldn't load the leaderboard.
+          )}
+
+          {!entry.qualified && (
+            <Text style={styles.qualifyingText}>
+              {picksNeeded === 1
+                ? '1 more graded pick to qualify'
+                : `${picksNeeded} more graded picks to qualify`}
             </Text>
-          </View>
-        ) : entries.length === 0 ? (
-          <View style={styles.statusCard}>
-            <Text style={styles.emptyTitle}>
-              No submitted picks yet
-            </Text>
+          )}
+        </View>
 
-            <Text style={styles.statusText}>
-              Submitted Predictor entries will appear here.
-            </Text>
-          </View>
-        ) : (
-          entries.map((entry, index) => {
-            const isCurrentUser =
-              entry.user_id === currentUserId;
+        <View style={styles.scoreColumn}>
+          <Text style={styles.score}>
+            {entry.graded}
+          </Text>
 
-            return (
-              <View
-                key={entry.user_id}
-                style={[
-                  styles.entryCard,
-                  isCurrentUser &&
-                    styles.currentUserCard,
-                ]}
-              >
-                <View style={styles.rankColumn}>
-                  <Text
-                    style={[
-                      styles.rank,
-                      index < 3 && styles.topRank,
-                    ]}
-                  >
-                    {index + 1}
-                  </Text>
-                </View>
+          <Text style={styles.graded}>
+            PICKS
+          </Text>
+        </View>
 
-                <View style={styles.userColumn}>
-                  <Text style={styles.displayName}>
-                    {entry.display_name ||
-                      entry.username ||
-                      'W&W Member'}
-                  </Text>
-
-                  {entry.username && (
-                    <Text style={styles.username}>
-                      @{entry.username}
-                      {isCurrentUser ? ' • YOU' : ''}
-                    </Text>
-                  )}
-                </View>
-
-                <View style={styles.scoreColumn}>
-                  <Text style={styles.score}>
-                    {entry.correct}
-                  </Text>
-
-                  <Text style={styles.graded}>
-                    / {entry.graded}
-                  </Text>
-                </View>
-
-                <View style={styles.accuracyColumn}>
-                  <Text style={styles.accuracy}>
-                    {Number(entry.accuracy).toFixed(1)}%
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
+        <View style={styles.accuracyColumn}>
+          <Text style={styles.accuracy}>
+            {Number(entry.accuracy).toFixed(1)}%
+          </Text>
+        </View>
+      </View>
+    );
+  })
+)}  
 
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>
@@ -201,10 +282,11 @@ export default function LeaderboardScreen() {
           </Text>
 
           <Text style={styles.infoText}>
-            Rankings are based on correct picks from games
-            with official final results. Accuracy updates as
-            the season progresses.
-          </Text>
+  Rankings are based on prediction accuracy from games
+  with official final results. Members need at least 10
+  graded picks to qualify for a leaderboard rank.
+  Ties are broken by more graded picks, then more correct picks.
+</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -310,7 +392,12 @@ const styles = StyleSheet.create({
     borderColor: '#75C7F0',
     backgroundColor: '#122536',
   },
-
+qualifyingText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '800',
+  marginTop: 3,
+},
   rank: {
     color: '#8FA2B3',
     fontSize: 17,
@@ -367,7 +454,35 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginBottom: 5,
   },
+unlockEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.4,
+},
 
+unlockNumber: {
+  color: '#F3EFE3',
+  fontSize: 38,
+  fontWeight: '900',
+  marginTop: 8,
+  marginBottom: 5,
+},
+
+unlockTrack: {
+  width: '100%',
+  height: 6,
+  backgroundColor: '#172636',
+  borderRadius: 10,
+  overflow: 'hidden',
+  marginTop: 16,
+},
+
+unlockFill: {
+  height: '100%',
+  backgroundColor: '#75C7F0',
+  borderRadius: 10,
+},
   statusText: {
     color: '#8FA2B3',
     fontSize: 13,

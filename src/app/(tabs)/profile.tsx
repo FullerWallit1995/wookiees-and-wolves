@@ -49,6 +49,8 @@ const [predictorAccuracy, setPredictorAccuracy] =
 
 const [predictorGraded, setPredictorGraded] =
   useState(0);
+  const [predictorCompletedGames, setPredictorCompletedGames] =
+  useState(0);
 
   const loadUser = useCallback(async () => {
   const {
@@ -69,6 +71,7 @@ const [predictorGraded, setPredictorGraded] =
     setPredictorEntries(0);
     setPredictorAccuracy(null);
     setPredictorGraded(0);
+    setPredictorCompletedGames(0);
     setLoading(false);
     return;
   }
@@ -140,89 +143,125 @@ const [predictorGraded, setPredictorGraded] =
   }
 
   const {
-    data: predictionData,
-    error: predictionError,
-  } = await supabase
-    .from('predictor_predictions')
-    .select('predictions, submitted_at')
-    .eq('user_id', user.id)
-    .eq('season', '2026-27')
-    .maybeSingle();
+  data: predictionData,
+  error: predictionError,
+} = await supabase
+  .from('predictor_predictions')
+  .select('predictions')
+  .eq('user_id', user.id)
+  .eq('season', '2026-27')
+  .maybeSingle();
 
-  if (predictionError) {
-    console.log(
-      'Could not load profile Predictor entry:',
-      predictionError
-    );
-  } else if (
-    predictionData?.submitted_at &&
-    predictionData.predictions
-  ) {
-    const picks =
-      predictionData.predictions as Record<
-        string,
-        'W' | 'L'
-      >;
+if (predictionError) {
+  console.log(
+    'Could not load profile Predictor entry:',
+    predictionError
+  );
+} else if (predictionData?.predictions) {
+  const picks =
+    predictionData.predictions as Record<
+      string,
+      'W' | 'L'
+    >;
 
-    const values = Object.values(picks);
+  const values = Object.values(picks);
 
-    const wins = values.filter(
-      (pick) => pick === 'W'
-    ).length;
+  const wins = values.filter(
+    (pick) => pick === 'W'
+  ).length;
 
-    const losses = values.filter(
-      (pick) => pick === 'L'
-    ).length;
+  const losses = values.filter(
+    (pick) => pick === 'L'
+  ).length;
 
-    setPredictorRecord(`${wins}–${losses}`);
-  } else {
-    setPredictorRecord(null);
+  setPredictorRecord(`${wins}–${losses}`);
+} else {
+  setPredictorRecord(null);
+}
+
+const {
+  count: completedCount,
+  error: completedError,
+} = await supabase
+  .from('predictor_results')
+  .select('*', {
+    count: 'exact',
+    head: true,
+  })
+  .eq('season', '2026-27')
+  .eq('final', true);
+
+if (completedError) {
+  console.log(
+    'Could not load completed Predictor games:',
+    completedError
+  );
+} else {
+  setPredictorCompletedGames(completedCount ?? 0);
+}
+
+const {
+  data: leaderboardData,
+  error: leaderboardError,
+} = await supabase.rpc(
+  'get_predictor_leaderboard',
+  {
+    target_season: '2026-27',
   }
+);
 
-  const {
-    data: leaderboardData,
-    error: leaderboardError,
-  } = await supabase.rpc(
-    'get_predictor_leaderboard',
-    {
-      target_season: '2026-27',
-    }
+if (leaderboardError) {
+  console.log(
+    'Could not load profile Predictor rank:',
+    leaderboardError
+  );
+} else {
+  const leaderboard = leaderboardData ?? [];
+
+  const qualifiedEntries = leaderboard.filter(
+    (entry: { qualified: boolean }) =>
+      entry.qualified
   );
 
-  if (leaderboardError) {
-    console.log(
-      'Could not load profile Predictor rank:',
-      leaderboardError
+  setPredictorEntries(qualifiedEntries.length);
+
+  const userEntry = leaderboard.find(
+    (entry: { user_id: string }) =>
+      entry.user_id === user.id
+  );
+
+  if (userEntry) {
+    const graded = Number(userEntry.graded) || 0;
+
+    setPredictorGraded(graded);
+
+    setPredictorAccuracy(
+      graded > 0
+        ? Number(userEntry.accuracy)
+        : null
     );
-  } else {
-    const leaderboard = leaderboardData ?? [];
 
-    setPredictorEntries(leaderboard.length);
+    if (userEntry.qualified) {
+      const qualifiedIndex =
+        qualifiedEntries.findIndex(
+          (entry: { user_id: string }) =>
+            entry.user_id === user.id
+        );
 
-    const userIndex = leaderboard.findIndex(
-      (entry: { user_id: string }) =>
-        entry.user_id === user.id
-    );
-
-    if (userIndex >= 0) {
-      const entry = leaderboard[userIndex];
-
-      setPredictorRank(userIndex + 1);
-      setPredictorGraded(
-        Number(entry.graded) || 0
-      );
-
-      setPredictorAccuracy(
-        Number(entry.graded) > 0
-          ? Number(entry.accuracy)
+      setPredictorRank(
+        qualifiedIndex >= 0
+          ? qualifiedIndex + 1
           : null
       );
     } else {
       setPredictorRank(null);
-      setPredictorGraded(0);
-      setPredictorAccuracy(null);
     }
+  } else {
+    setPredictorRank(null);
+    setPredictorGraded(0);
+    setPredictorAccuracy(null);
   }
+}
 
   setLoading(false);
 }, []);
@@ -253,6 +292,7 @@ useEffect(() => {
         setPredictorEntries(0);
         setPredictorAccuracy(null);
         setPredictorGraded(0);
+        setPredictorCompletedGames(0);
         setLoading(false);
         setRole('member');
       }
@@ -500,16 +540,24 @@ useEffect(() => {
       <View style={styles.predictorProfileDivider} />
 
       <View style={styles.predictorProfileRow}>
-        <Text style={styles.predictorProfileLabel}>
-          CURRENT RANK
-        </Text>
+  <Text style={styles.predictorProfileLabel}>
+    {predictorCompletedGames < 10
+      ? 'LEADERBOARD'
+      : predictorGraded < 10
+        ? 'QUALIFYING'
+        : 'CURRENT RANK'}
+  </Text>
 
-        <Text style={styles.predictorProfileValue}>
-          {predictorRank
-            ? `#${predictorRank} of ${predictorEntries}`
-            : '—'}
-        </Text>
-      </View>
+  <Text style={styles.predictorProfileValue}>
+    {predictorCompletedGames < 10
+      ? `${predictorCompletedGames}/10 games`
+      : predictorGraded < 10
+        ? `${predictorGraded}/10 picks`
+        : predictorRank
+          ? `#${predictorRank} of ${predictorEntries}`
+          : '—'}
+  </Text>
+</View>
 
       <View style={styles.predictorProfileDivider} />
 
