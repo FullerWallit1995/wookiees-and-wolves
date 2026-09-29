@@ -1,5 +1,4 @@
 import { supabase } from '@/lib/supabase';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '@supabase/supabase-js';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -46,14 +45,9 @@ const [results, setResults] = useState<
   const [predictions, setPredictions] = useState<
     Record<number, Prediction>
   >({});
-  const [predictionsLoaded, setPredictionsLoaded] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-const [cloudLoaded, setCloudLoaded] = useState(false);
-const [currentRank, setCurrentRank] =
-  useState<number | null>(null);
 
-const [leaderboardCount, setLeaderboardCount] =
-  useState(0);
+
 useEffect(() => {
   async function loadGames() {
     const { data, error } = await supabase
@@ -136,79 +130,26 @@ useEffect(() => {
   const {
     data: { subscription },
   } = supabase.auth.onAuthStateChange((_event, session) => {
-    setUser(session?.user ?? null);
-    setCloudLoaded(false);
-  });
+  setUser(session?.user ?? null);
+
+  if (!session?.user) {
+    setPredictions({});
+  }
+});
 
   return () => {
     subscription.unsubscribe();
   };
 }, []);
-useEffect(() => {
-  async function loadRank() {
-    if (!user) {
-      setCurrentRank(null);
-      setLeaderboardCount(0);
-      return;
-    }
 
-    const { data, error } = await supabase.rpc(
-      'get_predictor_leaderboard',
-      {
-        target_season: '2026-27',
-      }
-    );
-
-    if (error) {
-      console.log(
-        'Could not load Predictor rank:',
-        error
-      );
-      return;
-    }
-
-    const leaderboard = data ?? [];
-
-    setLeaderboardCount(leaderboard.length);
-
-    const userIndex = leaderboard.findIndex(
-      (entry: { user_id: string }) =>
-        entry.user_id === user.id
-    );
-
-    setCurrentRank(
-      userIndex >= 0 ? userIndex + 1 : null
-    );
-  }
-
-  loadRank();
-}, [user, results]);
 useEffect(() => {
   async function loadPredictions() {
-    try {
-      const savedPredictions = await AsyncStorage.getItem(
-        'wolves-predictions-2026-27'
-      );
-
-      if (savedPredictions) {
-        setPredictions(JSON.parse(savedPredictions));
-      }
-    } catch (error) {
-      console.log('Could not load predictions:', error);
-    } finally {
-      setPredictionsLoaded(true);
-    }
-  }
-
-  loadPredictions();
-}, []);
-useEffect(() => {
-  async function syncInitialPredictions() {
-    if (!user || !predictionsLoaded || cloudLoaded) {
+    if (!user) {
+      setPredictions({});
       return;
     }
 
-    const { data: cloudData, error } = await supabase
+    const { data, error } = await supabase
       .from('predictor_predictions')
       .select('predictions')
       .eq('user_id', user.id)
@@ -222,57 +163,17 @@ useEffect(() => {
       );
       return;
     }
-    if (cloudData?.predictions) {
-      const cloudPredictions =
-        cloudData.predictions as Record<number, Prediction>;
 
-      setPredictions(cloudPredictions);
-    } else if (Object.keys(predictions).length > 0) {
-      const { error: uploadError } = await supabase
-        .from('predictor_predictions')
-        .insert({
-          user_id: user.id,
-          season: '2026-27',
-          predictions,
-        });
-
-      if (uploadError) {
-        console.log(
-          'Could not upload local predictions:',
-          uploadError
-        );
-        return;
-      }
-    }
-
-    setCloudLoaded(true);
+    setPredictions(
+      (data?.predictions ?? {}) as Record<
+        number,
+        Prediction
+      >
+    );
   }
 
-  syncInitialPredictions();
-}, [
-  user,
-  predictionsLoaded,
-  cloudLoaded,
-  predictions,
-]);
-useEffect(() => {
-  async function savePredictions() {
-    if (!predictionsLoaded) {
-      return;
-    }
-
-    try {
-      await AsyncStorage.setItem(
-        'wolves-predictions-2026-27',
-        JSON.stringify(predictions)
-      );
-    } catch (error) {
-      console.log('Could not save predictions:', error);
-    }
-  }
-
-  savePredictions();
-}, [predictions, predictionsLoaded]);
+  loadPredictions();
+}, [user]);
 
 const [expandedMonths, setExpandedMonths] = useState<
   Record<string, boolean>
@@ -332,21 +233,51 @@ function getMonthStats(month: string) {
     (game) => predictions[game.id] === 'L'
   ).length;
 
-const availableGames = monthGames.filter(
-  (game) => game.available !== false
-);
+  const actionableGames = monthGames.filter(
+    (game) =>
+      game.available !== false &&
+      !isGameLocked(game) &&
+      !results[game.id]
+  );
 
-const monthComplete =
-  monthGames.length > 0 &&
-  availableGames.length === monthGames.length &&
-  monthWins + monthLosses === monthGames.length;
+  const openUnpickedGames = actionableGames.filter(
+    (game) => !predictions[game.id]
+  );
 
-return {
-  games: monthGames,
-  wins: monthWins,
-  losses: monthLosses,
-  complete: monthComplete,
-};
+  const hasActionableGames =
+    actionableGames.length > 0;
+
+  const allOpenGamesPicked =
+    hasActionableGames &&
+    openUnpickedGames.length === 0;
+
+  const allKnownGamesLocked =
+    monthGames.length > 0 &&
+    monthGames
+      .filter((game) => game.available !== false)
+      .every(
+        (game) =>
+          isGameLocked(game) ||
+          !!results[game.id]
+      );
+
+  let status: 'locked' | 'set' | 'needed';
+
+  if (allKnownGamesLocked) {
+    status = 'locked';
+  } else if (allOpenGamesPicked) {
+    status = 'set';
+  } else {
+    status = 'needed';
+  }
+
+  return {
+    games: monthGames,
+    wins: monthWins,
+    losses: monthLosses,
+    status,
+    picksNeeded: openUnpickedGames.length,
+  };
 }
 
   const predicted = wins + losses;
@@ -357,11 +288,6 @@ return {
     !results[game.id]
 );
 
-const openGameCount = openGames.length;
-
-const openUnpickedCount = openGames.filter(
-  (game) => !predictions[game.id]
-).length;
 
 const nextLockGame = [...openGames]
   .filter((game) => !!game.picksLockAt)
@@ -413,17 +339,92 @@ const accuracy =
 
   return new Date() >= new Date(game.picksLockAt);
 }
-  const availableGames = games.filter(
-  (game) => game.available !== false
-);
 
 
 
- async function makePrediction(
-  
+async function makePrediction(
   game: Game,
   prediction: Prediction
 ) {
+  if (
+    isGameLocked(game) ||
+    results[game.id]
+  ) {
+    return;
+  }
+
+  const nextPredictions: Record<number, Prediction> = {
+    ...predictions,
+  };
+
+  if (predictions[game.id] === prediction) {
+    delete nextPredictions[game.id];
+  } else {
+    nextPredictions[game.id] = prediction;
+  }
+
+if (!user) {
+  Alert.alert(
+    'Join the Predictor',
+    'Create a W&W account or sign in to make picks, compete on the leaderboard, and track your accuracy.',
+    [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Sign In',
+        onPress: () =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'login' },
+          }),
+      },
+      {
+        text: 'Create Account',
+        onPress: () =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'signup' },
+          }),
+      },
+    ]
+  );
+
+  return;
+}
+
+  const { error } = await supabase
+    .from('predictor_predictions')
+    .upsert(
+      {
+        user_id: user.id,
+        season: '2026-27',
+        predictions: nextPredictions,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id,season',
+      }
+    );
+
+  if (error) {
+    console.log(
+      'Could not save prediction:',
+      error
+    );
+
+    Alert.alert(
+      'Pick not saved',
+      'That game may have locked. Your previous pick has been kept.'
+    );
+
+    return;
+  }
+
+  setPredictions(nextPredictions);
+}
+
   function clearOpenPredictions() {
   const openPickedGames = games.filter(
     (game) =>
@@ -463,134 +464,8 @@ const accuracy =
           });
 
           if (!user) {
-            setPredictions(nextPredictions);
-            return;
-          }
-
-          const { error } = await supabase
-            .from('predictor_predictions')
-            .upsert(
-              {
-                user_id: user.id,
-                season: '2026-27',
-                predictions: nextPredictions,
-                updated_at: new Date().toISOString(),
-              },
-              {
-                onConflict: 'user_id,season',
-              }
-            );
-
-          if (error) {
-            console.log(
-              'Could not clear open predictions:',
-              error
-            );
-
-            Alert.alert(
-              'Could not clear picks',
-              'Your picks were not changed. Please try again.'
-            );
-
-            return;
-          }
-
-          setPredictions(nextPredictions);
-        },
-      },
-    ]
-  );
+  return;
 }
-  if (
-    isGameLocked(game) ||
-    results[game.id]
-  ) {
-    return;
-  }
-
-  const nextPredictions = {
-    ...predictions,
-    [game.id]: prediction,
-  };
-
-  // Signed-out users can still make local picks.
-  if (!user) {
-    setPredictions(nextPredictions);
-    return;
-  }
-
-  const { error } = await supabase
-    .from('predictor_predictions')
-    .upsert(
-      {
-        user_id: user.id,
-        season: '2026-27',
-        predictions: nextPredictions,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'user_id,season',
-      }
-    );
-
-  if (error) {
-    console.log(
-      'Could not save prediction:',
-      error
-    );
-
-    Alert.alert(
-      'Pick not saved',
-      'That game may have locked. Your previous pick has been kept.'
-    );
-
-    return;
-  }
-
-  setPredictions(nextPredictions);
-}
- function clearOpenPredictions() {
-  const openPickedGames = games.filter(
-    (game) =>
-      !isGameLocked(game) &&
-      !results[game.id] &&
-      !!predictions[game.id]
-  );
-
-  if (openPickedGames.length === 0) {
-    Alert.alert(
-      'No open picks',
-      'You do not have any open picks to clear.'
-    );
-    return;
-  }
-
-  Alert.alert(
-    'Clear open picks?',
-    `This will remove ${openPickedGames.length} ${
-      openPickedGames.length === 1 ? 'pick' : 'picks'
-    } from games that are still open. Locked picks will not be changed.`,
-    [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Clear Picks',
-        style: 'destructive',
-        onPress: async () => {
-          const nextPredictions = {
-            ...predictions,
-          };
-
-          openPickedGames.forEach((game) => {
-            delete nextPredictions[game.id];
-          });
-
-          if (!user) {
-            setPredictions(nextPredictions);
-            return;
-          }
 
           const { error } = await supabase
             .from('predictor_predictions')
@@ -627,6 +502,7 @@ const accuracy =
   );
 }
  
+ 
 if (!gamesLoaded) {
   return (
     <SafeAreaView style={styles.container}>
@@ -649,7 +525,7 @@ if (!gamesLoaded) {
         <Text style={styles.title}>Wolves Predictor</Text>
 
         <Text style={styles.subtitle}>
-          Pick every game and build your predicted Wolves record.
+            Pick the Wolves to win or lose. Each game locks at tipoff.
         </Text>
       
         {/* RECORD */}
@@ -675,49 +551,10 @@ if (!gamesLoaded) {
               <Text style={styles.statLabel}>LOSSES</Text>
             </View>
 
-            <View style={styles.divider} />
-
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{predicted}</Text>
-<Text style={styles.statLabel}>PICKS</Text>
-            </View>
+            
           </View>
         </View>
-{/* LIVE PREDICTOR STATUS */}
-<View style={styles.predictorStatusCard}>
-  <View style={styles.predictorStatusRow}>
-    <View style={styles.predictorStatusStat}>
-      <Text style={styles.predictorStatusNumber}>
-        {predicted}
-      </Text>
-      <Text style={styles.predictorStatusLabel}>
-        PICKS MADE
-      </Text>
-    </View>
 
-    <View style={styles.divider} />
-
-    <View style={styles.predictorStatusStat}>
-      <Text style={styles.predictorStatusNumber}>
-        {openGameCount}
-      </Text>
-      <Text style={styles.predictorStatusLabel}>
-        GAMES OPEN
-      </Text>
-    </View>
-
-    <View style={styles.divider} />
-
-    <View style={styles.predictorStatusStat}>
-      <Text style={styles.predictorStatusNumber}>
-        {openUnpickedCount}
-      </Text>
-      <Text style={styles.predictorStatusLabel}>
-        NEED PICKS
-      </Text>
-    </View>
-  </View>
-</View>
 
 {nextLockGame && (
   <View style={styles.nextLockCard}>
@@ -739,11 +576,35 @@ if (!gamesLoaded) {
     <Text style={styles.nextLockPick}>
       {predictions[nextLockGame.id]
         ? `YOUR PICK: ${predictions[nextLockGame.id]}`
-        : 'NO PICK YET'}
+        : 'PICK NEEDED'}
     </Text>
   </View>
 )}
+{!user && (
+  <View style={styles.predictorGuestCard}>
+    <Text style={styles.predictorGuestTitle}>
+      JOIN THE PREDICTOR
+    </Text>
 
+    <Text style={styles.predictorGuestText}>
+      Sign in or create a W&W account to make picks and compete on the leaderboard.
+    </Text>
+
+    <Pressable
+      style={styles.predictorGuestButton}
+      onPress={() =>
+        router.push({
+          pathname: '/auth',
+          params: { mode: 'signup' },
+        })
+      }
+    >
+      <Text style={styles.predictorGuestButtonText}>
+        CREATE ACCOUNT
+      </Text>
+    </Pressable>
+  </View>
+)}
 {gradedPicks > 0 && (
   <View style={styles.accuracyCard}>
     <View style={styles.accuracyHeader}>
@@ -853,19 +714,39 @@ if (!gamesLoaded) {
     {month}
   </Text>
 
-  {monthStats.complete && (
-    <View style={styles.completeBadge}>
-      <Text style={styles.completeBadgeText}>
-        ✓ COMPLETE
+ {monthStats.status === 'set' && (
+  <View style={styles.completeBadge}>
+    <Text style={styles.completeBadgeText}>
+      ✓ SET
+    </Text>
+  </View>
+)}
+
+{monthStats.status === 'locked' && (
+  <View style={styles.lockedMonthBadge}>
+    <Text style={styles.lockedMonthBadgeText}>
+      LOCKED
+    </Text>
+  </View>
+)}
+
+{monthStats.status === 'needed' &&
+  monthStats.picksNeeded > 0 && (
+    <View style={styles.neededBadge}>
+      <Text style={styles.neededBadgeText}>
+        {monthStats.picksNeeded}{' '}
+        {monthStats.picksNeeded === 1
+          ? 'PICK'
+          : 'PICKS'}{' '}
+        NEEDED
       </Text>
     </View>
   )}
 </View>
 
          <Text style={styles.monthDetails}>
-  {monthStats.complete
-    ? `${monthStats.games.length} games • ${monthStats.wins}–${monthStats.losses}`
-    : `${monthStats.games.length} games • Picks: ${monthStats.wins}–${monthStats.losses}`}
+  {monthStats.games.length} games • Picks:{' '}
+  {monthStats.wins}–{monthStats.losses}
 </Text>
         </View>
 
@@ -1004,8 +885,8 @@ disabled={
     </View>
   );
 })}
-{predicted > 0 && (
-  <Pressable
+{user && predicted > 0 && (
+    <Pressable
     style={styles.clearPicksButton}
     onPress={clearOpenPredictions}
   >
@@ -1128,7 +1009,43 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+predictorGuestCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 16,
+  padding: 17,
+  marginTop: 14,
+},
 
+predictorGuestTitle: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.4,
+},
+
+predictorGuestText: {
+  color: '#8FA2B3',
+  fontSize: 12,
+  lineHeight: 18,
+  marginTop: 5,
+},
+
+predictorGuestButton: {
+  backgroundColor: '#75C7F0',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 13,
+},
+
+predictorGuestButtonText: {
+  color: '#07111F',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
   progressTrack: {
     height: 7,
     backgroundColor: '#152536',
@@ -1238,7 +1155,33 @@ monthName: {
   fontWeight: '900',
   letterSpacing: 1.2,
 },
+lockedMonthBadge: {
+  backgroundColor: '#172636',
+  borderRadius: 6,
+  paddingHorizontal: 7,
+  paddingVertical: 4,
+},
 
+lockedMonthBadgeText: {
+  color: '#7F94A7',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+neededBadge: {
+  backgroundColor: '#3A3020',
+  borderRadius: 6,
+  paddingHorizontal: 7,
+  paddingVertical: 4,
+},
+
+neededBadgeText: {
+  color: '#D8B36A',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.7,
+},
 monthDetails: {
   color: '#7F94A7',
   fontSize: 11,
@@ -1449,12 +1392,13 @@ predictorStatusLabel: {
 },
 
 nextLockCard: {
-  backgroundColor: '#101D2B',
-  borderWidth: 1,
-  borderColor: '#31516B',
-  borderRadius: 16,
-  padding: 17,
+  backgroundColor: '#122536',
+  borderWidth: 2,
+  borderColor: '#75C7F0',
+  borderRadius: 18,
+  padding: 18,
   marginTop: 14,
+  marginBottom: 2,
 },
 
 nextLockEyebrow: {
@@ -1466,9 +1410,9 @@ nextLockEyebrow: {
 
 nextLockOpponent: {
   color: '#F3EFE3',
-  fontSize: 20,
+  fontSize: 23,
   fontWeight: '900',
-  marginTop: 5,
+  marginTop: 6,
 },
 
 nextLockTime: {
@@ -1480,10 +1424,10 @@ nextLockTime: {
 
 nextLockPick: {
   color: '#75C7F0',
-  fontSize: 10,
+  fontSize: 11,
   fontWeight: '900',
   letterSpacing: 1,
-  marginTop: 10,
+  marginTop: 12,
 },
 deadlineText: {
   color: '#F3EFE3',
