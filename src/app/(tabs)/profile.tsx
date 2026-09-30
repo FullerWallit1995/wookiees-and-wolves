@@ -19,12 +19,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import {
-  disableNewEpisodeNotifications,
-  disablePredictorNotifications,
-  enableNewEpisodeNotifications,
-  enablePredictorNotifications,
-} from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
@@ -55,10 +49,7 @@ const [predictorAccuracy, setPredictorAccuracy] =
 
 const [predictorGraded, setPredictorGraded] =
   useState(0);
-  const [
-  predictorRemindersEnabled,
-  setPredictorRemindersEnabled,
-] = useState(false);
+
 const [
   newEpisodeNotificationsEnabled,
   setNewEpisodeNotificationsEnabled,
@@ -93,28 +84,7 @@ const [
     setLoading(false);
     return;
   }
-const {
-  data: notificationPreferences,
-  error: notificationPreferencesError,
-} = await supabase
-  .from('notification_preferences')
-  .select('predictor_reminders, new_episodes')
-  .eq('user_id', user.id)
-  .maybeSingle();
 
-if (notificationPreferencesError) {
-  console.log(
-    'Could not load notification preferences:',
-    notificationPreferencesError
-  );
-} else {
-  setPredictorRemindersEnabled(
-    notificationPreferences?.predictor_reminders ?? false
-  );
-  setNewEpisodeNotificationsEnabled(
-  notificationPreferences?.new_episodes ?? false
-);
-}
   const { data: profile, error: profileError } =
     await supabase
       .from('profiles')
@@ -331,8 +301,6 @@ useEffect(() => {
         setPredictorEntries(0);
         setPredictorAccuracy(null);
         setPredictorGraded(0);
-        setPredictorRemindersEnabled(false);
-        setNewEpisodeNotificationsEnabled(false);
 setNotificationSaving(false);
         setPredictorCompletedGames(0);
         setLoading(false);
@@ -372,102 +340,7 @@ setNotificationSaving(false);
       ]
     );
   }
-async function togglePredictorReminders() {
-  if (notificationSaving) {
-    return;
-  }
 
-  setNotificationSaving(true);
-
-  try {
-    if (predictorRemindersEnabled) {
-      const result =
-        await disablePredictorNotifications();
-
-      if (!result.success) {
-        Alert.alert(
-          'Could not update reminders',
-          'Please try again.'
-        );
-        return;
-      }
-
-      setPredictorRemindersEnabled(false);
-      return;
-    }
-
-    const result =
-      await enablePredictorNotifications();
-
-    if (!result.success) {
-      if (result.reason === 'permission_denied') {
-        Alert.alert(
-          'Notifications not enabled',
-          'Notification permission was not granted on this device.'
-        );
-      } else {
-        Alert.alert(
-          'Could not enable reminders',
-          'Please try again.'
-        );
-      }
-
-      return;
-    }
-
-    setPredictorRemindersEnabled(true);
-  } finally {
-    setNotificationSaving(false);
-  }
-}
-async function toggleNewEpisodeNotifications() {
-  if (notificationSaving) {
-    return;
-  }
-
-  setNotificationSaving(true);
-
-  try {
-    if (newEpisodeNotificationsEnabled) {
-      const result =
-        await disableNewEpisodeNotifications();
-
-      if (!result.success) {
-        Alert.alert(
-          'Could not update notifications',
-          'Please try again.'
-        );
-        return;
-      }
-
-      setNewEpisodeNotificationsEnabled(false);
-      return;
-    }
-
-    const result =
-      await enableNewEpisodeNotifications();
-
-    if (!result.success) {
-      if (result.reason === 'permission_denied') {
-        Alert.alert(
-          'Notifications not enabled',
-          'Notification permission was not granted on this device.'
-        );
-      } else {
-        Alert.alert(
-          'Could not enable notifications',
-          'Please try again.'
-        );
-      }
-
-      return;
-    }
-
-    setNewEpisodeNotificationsEnabled(true);
-  } finally {
-    setNotificationSaving(false);
-  }
-}
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -743,82 +616,7 @@ async function toggleNewEpisodeNotifications() {
     </>
   )}
 </View>
-<Text style={styles.dashboardSectionLabel}>
-  NOTIFICATIONS
-</Text>
 
-<View style={styles.notificationCard}>
-  <View style={styles.notificationInfo}>
-    <Text style={styles.notificationTitle}>
-      Predictor Reminders
-    </Text>
-
-    <Text style={styles.notificationDescription}>
-      Get one reminder when you haven't made your pick
-      and tipoff is approaching.
-    </Text>
-  </View>
-
-  <Pressable
-    style={[
-      styles.notificationToggle,
-      predictorRemindersEnabled &&
-        styles.notificationToggleEnabled,
-    ]}
-    onPress={togglePredictorReminders}
-    disabled={notificationSaving}
-  >
-    <Text
-      style={[
-        styles.notificationToggleText,
-        predictorRemindersEnabled &&
-          styles.notificationToggleTextEnabled,
-      ]}
-    >
-      {notificationSaving
-        ? '...'
-        : predictorRemindersEnabled
-          ? 'ON'
-          : 'OFF'}
-    </Text>
-  </Pressable>
-</View>
-
-<View style={styles.notificationCard}>
-  <View style={styles.notificationInfo}>
-    <Text style={styles.notificationTitle}>
-      New Episodes
-    </Text>
-
-    <Text style={styles.notificationDescription}>
-      Get notified when a new Wookiees & Wolves episode drops.
-    </Text>
-  </View>
-
-  <Pressable
-    style={[
-      styles.notificationToggle,
-      newEpisodeNotificationsEnabled &&
-        styles.notificationToggleEnabled,
-    ]}
-    onPress={toggleNewEpisodeNotifications}
-    disabled={notificationSaving}
-  >
-    <Text
-      style={[
-        styles.notificationToggleText,
-        newEpisodeNotificationsEnabled &&
-          styles.notificationToggleTextEnabled,
-      ]}
-    >
-      {notificationSaving
-        ? '...'
-        : newEpisodeNotificationsEnabled
-          ? 'ON'
-          : 'OFF'}
-    </Text>
-  </Pressable>
-</View>
         <View style={styles.accountCard}>
           <Text style={styles.accountLabel}>
             ACCOUNT
