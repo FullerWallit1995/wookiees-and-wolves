@@ -597,13 +597,13 @@ setNotificationSaving(false);
   ) : (
     <>
       <Text style={styles.predictorEmptyTitle}>
-        No submitted prediction
-      </Text>
+  Make your first pick
+</Text>
 
-      <Text style={styles.predictorEmptyText}>
-        Complete your season picks to join the W&W
-        Predictor leaderboard.
-      </Text>
+<Text style={styles.predictorEmptyText}>
+  Pick Wolves wins and losses game by game. Make at
+  least 10 graded picks to qualify for the leaderboard.
+</Text>
 
       <Pressable
         style={styles.predictorProfileButton}

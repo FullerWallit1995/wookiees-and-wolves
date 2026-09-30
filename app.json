@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "wookiees-and-wolves",
+    "name": "Wookiees & Wolves",
     "slug": "wookiees-and-wolves",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/wookiees-wolves-logo.png",
     "scheme": "wookieesandwolves",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.wookieesandwolves.app"
-    },
+  "icon": "./assets/wookiees-wolves-logo.png",
+  "bundleIdentifier": "com.wookieesandwolves.app"
+},
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -27,13 +27,13 @@
     "plugins": [
       "expo-router",
       [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
-        }
-      ],
+  "expo-splash-screen",
+  {
+    "backgroundColor": "#07111F",
+    "image": "./assets/wookiees-wolves-logo.png",
+    "imageWidth": 180
+  }
+],
       "expo-font"
     ],
     "experiments": {
