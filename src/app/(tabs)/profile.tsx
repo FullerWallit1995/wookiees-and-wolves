@@ -20,7 +20,9 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
+  disableNewEpisodeNotifications,
   disablePredictorNotifications,
+  enableNewEpisodeNotifications,
   enablePredictorNotifications,
 } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
@@ -57,7 +59,10 @@ const [predictorGraded, setPredictorGraded] =
   predictorRemindersEnabled,
   setPredictorRemindersEnabled,
 ] = useState(false);
-
+const [
+  newEpisodeNotificationsEnabled,
+  setNewEpisodeNotificationsEnabled,
+] = useState(false);
 const [
   notificationSaving,
   setNotificationSaving,
@@ -93,7 +98,7 @@ const {
   error: notificationPreferencesError,
 } = await supabase
   .from('notification_preferences')
-  .select('predictor_reminders')
+  .select('predictor_reminders, new_episodes')
   .eq('user_id', user.id)
   .maybeSingle();
 
@@ -106,6 +111,9 @@ if (notificationPreferencesError) {
   setPredictorRemindersEnabled(
     notificationPreferences?.predictor_reminders ?? false
   );
+  setNewEpisodeNotificationsEnabled(
+  notificationPreferences?.new_episodes ?? false
+);
 }
   const { data: profile, error: profileError } =
     await supabase
@@ -324,6 +332,7 @@ useEffect(() => {
         setPredictorAccuracy(null);
         setPredictorGraded(0);
         setPredictorRemindersEnabled(false);
+        setNewEpisodeNotificationsEnabled(false);
 setNotificationSaving(false);
         setPredictorCompletedGames(0);
         setLoading(false);
@@ -407,6 +416,54 @@ async function togglePredictorReminders() {
     }
 
     setPredictorRemindersEnabled(true);
+  } finally {
+    setNotificationSaving(false);
+  }
+}
+async function toggleNewEpisodeNotifications() {
+  if (notificationSaving) {
+    return;
+  }
+
+  setNotificationSaving(true);
+
+  try {
+    if (newEpisodeNotificationsEnabled) {
+      const result =
+        await disableNewEpisodeNotifications();
+
+      if (!result.success) {
+        Alert.alert(
+          'Could not update notifications',
+          'Please try again.'
+        );
+        return;
+      }
+
+      setNewEpisodeNotificationsEnabled(false);
+      return;
+    }
+
+    const result =
+      await enableNewEpisodeNotifications();
+
+    if (!result.success) {
+      if (result.reason === 'permission_denied') {
+        Alert.alert(
+          'Notifications not enabled',
+          'Notification permission was not granted on this device.'
+        );
+      } else {
+        Alert.alert(
+          'Could not enable notifications',
+          'Please try again.'
+        );
+      }
+
+      return;
+    }
+
+    setNewEpisodeNotificationsEnabled(true);
   } finally {
     setNotificationSaving(false);
   }
@@ -721,6 +778,42 @@ async function togglePredictorReminders() {
       {notificationSaving
         ? '...'
         : predictorRemindersEnabled
+          ? 'ON'
+          : 'OFF'}
+    </Text>
+  </Pressable>
+</View>
+
+<View style={styles.notificationCard}>
+  <View style={styles.notificationInfo}>
+    <Text style={styles.notificationTitle}>
+      New Episodes
+    </Text>
+
+    <Text style={styles.notificationDescription}>
+      Get notified when a new Wookiees & Wolves episode drops.
+    </Text>
+  </View>
+
+  <Pressable
+    style={[
+      styles.notificationToggle,
+      newEpisodeNotificationsEnabled &&
+        styles.notificationToggleEnabled,
+    ]}
+    onPress={toggleNewEpisodeNotifications}
+    disabled={notificationSaving}
+  >
+    <Text
+      style={[
+        styles.notificationToggleText,
+        newEpisodeNotificationsEnabled &&
+          styles.notificationToggleTextEnabled,
+      ]}
+    >
+      {notificationSaving
+        ? '...'
+        : newEpisodeNotificationsEnabled
           ? 'ON'
           : 'OFF'}
     </Text>
@@ -1178,6 +1271,7 @@ notificationCard: {
   flexDirection: 'row',
   alignItems: 'center',
   gap: 14,
+  marginBottom: 8,
 },
 
 notificationInfo: {

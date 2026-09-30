@@ -50,12 +50,35 @@ export async function registerForPushNotifications() {
     return null;
   }
 
-  const token = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
+  const token =
+    await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
 
   return token.data;
 }
+
+async function savePushToken(
+  userId: string,
+  token: string
+) {
+  const { error } = await supabase
+    .from('push_tokens')
+    .upsert(
+      {
+        user_id: userId,
+        expo_push_token: token,
+        platform: Platform.OS,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'expo_push_token',
+      }
+    );
+
+  return error;
+}
+
 export async function enablePredictorNotifications() {
   const {
     data: { user },
@@ -77,24 +100,15 @@ export async function enablePredictorNotifications() {
     };
   }
 
-  const { error } = await supabase
-    .from('push_tokens')
-    .upsert(
-      {
-        user_id: user.id,
-        expo_push_token: token,
-        platform: Platform.OS,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'expo_push_token',
-      }
-    );
+  const tokenError = await savePushToken(
+    user.id,
+    token
+  );
 
-  if (error) {
+  if (tokenError) {
     console.log(
       'Could not save push token:',
-      error
+      tokenError
     );
 
     return {
@@ -103,36 +117,37 @@ export async function enablePredictorNotifications() {
     };
   }
 
-  const { error: preferenceError } = await supabase
-  .from('notification_preferences')
-  .upsert(
-    {
-      user_id: user.id,
-      predictor_reminders: true,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: 'user_id',
-    }
-  );
+  const { error } = await supabase
+    .from('notification_preferences')
+    .upsert(
+      {
+        user_id: user.id,
+        predictor_reminders: true,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    );
 
-if (preferenceError) {
-  console.log(
-    'Could not enable Predictor reminders:',
-    preferenceError
-  );
+  if (error) {
+    console.log(
+      'Could not enable Predictor reminders:',
+      error
+    );
+
+    return {
+      success: false,
+      reason: 'preference_failed',
+    };
+  }
 
   return {
-    success: false,
-    reason: 'preference_failed',
+    success: true,
+    token,
   };
 }
 
-return {
-  success: true,
-  token,
-};
-}
 export async function disablePredictorNotifications() {
   const {
     data: { user },
@@ -161,6 +176,117 @@ export async function disablePredictorNotifications() {
   if (error) {
     console.log(
       'Could not disable Predictor reminders:',
+      error
+    );
+
+    return {
+      success: false,
+      reason: 'save_failed',
+    };
+  }
+
+  return {
+    success: true,
+  };
+}
+
+export async function enableNewEpisodeNotifications() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      success: false,
+      reason: 'not_signed_in',
+    };
+  }
+
+  const token = await registerForPushNotifications();
+
+  if (!token) {
+    return {
+      success: false,
+      reason: 'permission_denied',
+    };
+  }
+
+  const tokenError = await savePushToken(
+    user.id,
+    token
+  );
+
+  if (tokenError) {
+    console.log(
+      'Could not save push token:',
+      tokenError
+    );
+
+    return {
+      success: false,
+      reason: 'save_failed',
+    };
+  }
+
+  const { error } = await supabase
+    .from('notification_preferences')
+    .upsert(
+      {
+        user_id: user.id,
+        new_episodes: true,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    );
+
+  if (error) {
+    console.log(
+      'Could not enable new episode notifications:',
+      error
+    );
+
+    return {
+      success: false,
+      reason: 'preference_failed',
+    };
+  }
+
+  return {
+    success: true,
+    token,
+  };
+}
+
+export async function disableNewEpisodeNotifications() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      success: false,
+      reason: 'not_signed_in',
+    };
+  }
+
+  const { error } = await supabase
+    .from('notification_preferences')
+    .upsert(
+      {
+        user_id: user.id,
+        new_episodes: false,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'user_id',
+      }
+    );
+
+  if (error) {
+    console.log(
+      'Could not disable new episode notifications:',
       error
     );
 
