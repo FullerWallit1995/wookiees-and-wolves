@@ -67,7 +67,7 @@ const params = useLocalSearchParams<{
 
   if (data.session) {
     Alert.alert(
-      'Welcome to The Den',
+      'Welcome to W&W',
       'Your Wookiees & Wolves account has been created.',
       [
         {
@@ -128,8 +128,8 @@ const params = useLocalSearchParams<{
 
           <Text style={styles.title}>
             {mode === 'signup'
-              ? 'Join The Den'
-              : 'Welcome Back'}
+  ? 'Become a W&W Member'
+  : 'Welcome Back'}
           </Text>
 
           <Text style={styles.subtitle}>

@@ -1,8 +1,15 @@
 import { useEpisodes } from '@/hooks/useEpisodes';
 import { usePredictorSummary } from '@/hooks/usePredictorSummary';
 import { supabase } from '@/lib/supabase';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import {
+  useFocusEffect,
+  useRouter,
+} from 'expo-router';
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react';
 import {
   Image,
   Linking,
@@ -74,6 +81,23 @@ setIsSignedIn(true);
     subscription.unsubscribe();
   };
 }, []);
+useFocusEffect(
+  useCallback(() => {
+    async function refreshAuth() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setIsSignedIn(!!user);
+
+      if (!user) {
+        setDisplayName(null);
+      }
+    }
+
+    refreshAuth();
+  }, [])
+);
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -90,7 +114,7 @@ setIsSignedIn(true);
         </View>
 
         <Text style={styles.tagline}>
-          STAR WARS • WOLVES BASKETBALL • TWO BEST FRIENDS
+          STAR WARS • WOLVES BASKETBALL
         </Text>
         {displayName && (
   <Text style={styles.greeting}>
@@ -324,6 +348,73 @@ setIsSignedIn(true);
 
   <Text style={styles.toolArrow}>›</Text>
 </Pressable>
+<View style={styles.socialCard}>
+  <Text style={styles.socialEyebrow}>
+    FOLLOW W&W
+  </Text>
+
+  <Text style={styles.socialTitle}>
+    Stay in the loop
+  </Text>
+
+  <Text style={styles.socialDescription}>
+    Clips, takes, episodes and everything Wookiees & Wolves.
+  </Text>
+
+  <View style={styles.socialButtons}>
+    <Pressable
+      style={styles.socialButton}
+      onPress={() =>
+        Linking.openURL(
+          'https://www.instagram.com/wookieesandwolves'
+        )
+      }
+    >
+      <Text style={styles.socialButtonText}>
+        INSTAGRAM
+      </Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.socialButton}
+      onPress={() =>
+        Linking.openURL(
+          'https://www.tiktok.com/@wookieesandwolves'
+        )
+      }
+    >
+      <Text style={styles.socialButtonText}>
+        TIKTOK
+      </Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.socialButton}
+      onPress={() =>
+        Linking.openURL(
+          'https://www.youtube.com/@wookieesandwolves'
+        )
+      }
+    >
+      <Text style={styles.socialButtonText}>
+        YOUTUBE
+      </Text>
+    </Pressable>
+
+    <Pressable
+      style={styles.socialButton}
+      onPress={() =>
+        Linking.openURL(
+          'https://x.com/WookieesWolves'
+        )
+      }
+    >
+      <Text style={styles.socialButtonText}>
+        X
+      </Text>
+    </Pressable>
+  </View>
+</View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -639,5 +730,58 @@ denLogo: {
 predictorLogo: {
   width: 64,
   height: 64,
+},
+socialCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+  marginBottom: 20,
+},
+
+socialEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.5,
+},
+
+socialTitle: {
+  color: '#F3EFE3',
+  fontSize: 20,
+  fontWeight: '900',
+  marginTop: 5,
+},
+
+socialDescription: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 5,
+},
+
+socialButtons: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  gap: 8,
+  marginTop: 16,
+},
+
+socialButton: {
+  width: '48%',
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 8,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+socialButtonText: {
+  color: '#DCE8EF',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
 },
 });

@@ -128,14 +128,72 @@ if (userChecked && !currentUserId) {
           See who's calling the Wolves season best.
         </Text>
 
-        <View style={styles.statusCard}>
-          <Text style={styles.emptyTitle}>
-            Join the Predictor
+        <View style={styles.guestPreview}>
+          <View style={styles.guestPreviewHeader}>
+            <Text style={styles.guestPreviewEyebrow}>
+              PREDICTOR LEADERBOARD
+            </Text>
+
+            <View style={styles.lockBadge}>
+              <Text style={styles.lockBadgeText}>
+                MEMBER ACCESS
+              </Text>
+            </View>
+          </View>
+
+          {[1, 2, 3].map((rank) => (
+            <View
+              key={rank}
+              style={styles.previewRow}
+            >
+              <Text style={styles.previewRank}>
+                #{rank}
+              </Text>
+
+              <View style={styles.previewMember}>
+                <View
+                  style={[
+                    styles.previewName,
+                    rank === 2 && styles.previewNameMedium,
+                    rank === 3 && styles.previewNameShort,
+                  ]}
+                />
+
+                <View style={styles.previewUsername} />
+              </View>
+
+              <View style={styles.previewStat}>
+                <View style={styles.previewStatBar} />
+                <Text style={styles.previewStatLabel}>
+                  PICKS
+                </Text>
+              </View>
+
+              <Text style={styles.previewAccuracy}>
+                —%
+              </Text>
+            </View>
+          ))}
+
+          <View style={styles.previewFade}>
+            <Text style={styles.previewLock}>
+              🔒
+            </Text>
+
+            <Text style={styles.previewLockText}>
+              Rankings available to W&W Members
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.guestJoinCard}>
+          <Text style={styles.guestJoinTitle}>
+            Think you can call the Wolves season?
           </Text>
 
-          <Text style={styles.statusText}>
-            Sign in or create a W&W account to view the
-            Predictor leaderboard.
+          <Text style={styles.guestJoinText}>
+            Become a W&W Member to make picks, compete
+            with the community and track your accuracy.
           </Text>
 
           <Pressable
@@ -148,7 +206,7 @@ if (userChecked && !currentUserId) {
             }
           >
             <Text style={styles.authButtonText}>
-              CREATE ACCOUNT
+              JOIN W&W
             </Text>
           </Pressable>
 
@@ -621,5 +679,151 @@ signInButtonText: {
   fontSize: 9,
   fontWeight: '900',
   letterSpacing: 1,
+},
+guestPreview: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 16,
+  overflow: 'hidden',
+},
+
+guestPreviewHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 14,
+},
+
+guestPreviewEyebrow: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1.2,
+},
+
+lockBadge: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 6,
+  paddingHorizontal: 7,
+  paddingVertical: 4,
+},
+
+lockBadgeText: {
+  color: '#8FA2B3',
+  fontSize: 7,
+  fontWeight: '900',
+  letterSpacing: 0.7,
+},
+
+previewRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  minHeight: 58,
+  borderTopWidth: 1,
+  borderTopColor: '#20354A',
+},
+
+previewRank: {
+  width: 38,
+  color: '#75C7F0',
+  fontSize: 16,
+  fontWeight: '900',
+},
+
+previewMember: {
+  flex: 1,
+},
+
+previewName: {
+  width: 92,
+  height: 10,
+  borderRadius: 5,
+  backgroundColor: '#536575',
+},
+
+previewNameMedium: {
+  width: 76,
+},
+
+previewNameShort: {
+  width: 62,
+},
+
+previewUsername: {
+  width: 50,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: '#334555',
+  marginTop: 6,
+},
+
+previewStat: {
+  width: 50,
+  alignItems: 'center',
+},
+
+previewStatBar: {
+  width: 22,
+  height: 9,
+  borderRadius: 4,
+  backgroundColor: '#536575',
+},
+
+previewStatLabel: {
+  color: '#60778A',
+  fontSize: 7,
+  marginTop: 3,
+},
+
+previewAccuracy: {
+  width: 42,
+  textAlign: 'right',
+  color: '#536575',
+  fontSize: 12,
+  fontWeight: '900',
+},
+
+previewFade: {
+  alignItems: 'center',
+  paddingTop: 17,
+  borderTopWidth: 1,
+  borderTopColor: '#20354A',
+},
+
+previewLock: {
+  fontSize: 18,
+},
+
+previewLockText: {
+  color: '#8FA2B3',
+  fontSize: 11,
+  fontWeight: '800',
+  marginTop: 5,
+},
+
+guestJoinCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 18,
+  padding: 18,
+  marginTop: 14,
+},
+
+guestJoinTitle: {
+  color: '#F3EFE3',
+  fontSize: 18,
+  fontWeight: '900',
+},
+
+guestJoinText: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 6,
 },
 });

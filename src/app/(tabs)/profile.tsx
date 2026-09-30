@@ -363,12 +363,11 @@ useEffect(() => {
           </View>
 
           <Text style={styles.guestTitle}>
-            Join The Den
+            Become a W&W Member
           </Text>
 
          <Text style={styles.infoText}>
-  Your W&W account keeps your Predictor picks, Den
-  activity and profile connected across devices.
+  Create an account to build your W&W profile, make Predictor picks, join the leaderboard, and take part in The Den.
 </Text>
 
           <Pressable
@@ -487,6 +486,16 @@ useEffect(() => {
     EDIT PROFILE
   </Text>
 </Pressable>
+{role === 'admin' && (
+  <Pressable
+    style={styles.adminToolsButton}
+    onPress={() => router.push('/admin')}
+  >
+    <Text style={styles.adminToolsButtonText}>
+      ADMIN TOOLS
+    </Text>
+  </Pressable>
+)}
 <Text style={styles.dashboardSectionLabel}>
   THE DEN
 </Text>
@@ -998,4 +1007,21 @@ denProfileButtonText: {
     fontWeight: '900',
     letterSpacing: 1,
   },
+  adminToolsButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#75C7F0',
+  borderRadius: 9,
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  marginTop: 8,
+  alignItems: 'center',
+},
+
+adminToolsButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
 });

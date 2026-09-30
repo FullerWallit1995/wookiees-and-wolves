@@ -333,7 +333,7 @@ const feedLoading =
 function promptSignIn() {
   Alert.alert(
     'Join the conversation',
-    'Sign in to like posts and vote in The Den.',
+    'Become a W&W Member or sign in to like posts and vote in The Den.',
     [
       {
         text: 'Not Now',
@@ -345,6 +345,14 @@ function promptSignIn() {
           router.push({
             pathname: '/auth',
             params: { mode: 'login' },
+          }),
+      },
+      {
+        text: 'Join W&W',
+        onPress: () =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'signup' },
           }),
       },
     ]
@@ -512,6 +520,52 @@ async function vote(
         <Text style={styles.subtitle}>
           Two fandoms. One community.
         </Text>
+        {!user && (
+  <View style={styles.guestCard}>
+    <Text style={styles.guestEyebrow}>
+      W&W MEMBERS
+    </Text>
+
+    <Text style={styles.guestTitle}>
+      Join the conversation
+    </Text>
+
+    <Text style={styles.guestText}>
+      Become a W&W Member to like posts, vote in polls,
+      make Predictor picks and join the leaderboard.
+    </Text>
+
+    <View style={styles.guestActions}>
+      <Pressable
+        style={styles.guestPrimaryButton}
+        onPress={() =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'signup' },
+          })
+        }
+      >
+        <Text style={styles.guestPrimaryButtonText}>
+          JOIN W&W
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.guestSecondaryButton}
+        onPress={() =>
+          router.push({
+            pathname: '/auth',
+            params: { mode: 'login' },
+          })
+        }
+      >
+        <Text style={styles.guestSecondaryButtonText}>
+          SIGN IN
+        </Text>
+      </Pressable>
+    </View>
+  </View>
+)}
 
         {/* FILTERS */}
         <View style={styles.filters}>
@@ -1119,6 +1173,72 @@ feedStatusText: {
 typeBadgeText: {
   color: '#9DAFBD',
   fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+guestCard: {
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 16,
+  padding: 17,
+  marginBottom: 20,
+},
+
+guestEyebrow: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1.4,
+},
+
+guestTitle: {
+  color: '#F3EFE3',
+  fontSize: 18,
+  fontWeight: '900',
+  marginTop: 5,
+},
+
+guestText: {
+  color: '#8FA2B3',
+  fontSize: 12,
+  lineHeight: 18,
+  marginTop: 5,
+},
+
+guestActions: {
+  flexDirection: 'row',
+  gap: 8,
+  marginTop: 14,
+},
+
+guestPrimaryButton: {
+  flex: 1,
+  backgroundColor: '#75C7F0',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+guestPrimaryButtonText: {
+  color: '#07111F',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+guestSecondaryButton: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+},
+
+guestSecondaryButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
   fontWeight: '900',
   letterSpacing: 1,
 },
