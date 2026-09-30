@@ -101,36 +101,32 @@ const hasMoreEpisodes =
             </Text>
 
             <View style={styles.actionRow}>
-              <Pressable
-                style={styles.primaryButton}
-                onPress={() => {
-                  if (latestEpisode.youtube) {
-                    Linking.openURL(
-                      latestEpisode.youtube
-                    );
-                  }
-                }}
-              >
-                <Text style={styles.primaryButtonText}>
-                  WATCH
-                </Text>
-              </Pressable>
+  {latestEpisode.youtube && (
+    <Pressable
+      style={styles.primaryButton}
+      onPress={() =>
+        Linking.openURL(latestEpisode.youtube!)
+      }
+    >
+      <Text style={styles.primaryButtonText}>
+        WATCH
+      </Text>
+    </Pressable>
+  )}
 
-              <Pressable
-                style={styles.secondaryButton}
-                onPress={() => {
-                  if (latestEpisode.spotify) {
-                    Linking.openURL(
-                      latestEpisode.spotify
-                    );
-                  }
-                }}
-              >
-                <Text style={styles.secondaryButtonText}>
-                  LISTEN
-                </Text>
-              </Pressable>
-            </View>
+  {latestEpisode.spotify && (
+    <Pressable
+      style={styles.secondaryButton}
+      onPress={() =>
+        Linking.openURL(latestEpisode.spotify!)
+      }
+    >
+      <Text style={styles.secondaryButtonText}>
+        LISTEN
+      </Text>
+    </Pressable>
+  )}
+</View>
           </View>
         </View>
 

@@ -52,27 +52,43 @@ const params = useLocalSearchParams<{
       setLoading(true);
 
       if (mode === 'signup') {
-        const { error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-        });
+  const { data, error } = await supabase.auth.signUp({
+    email: cleanEmail,
+    password,
+  });
 
-        if (error) {
-          Alert.alert('Could not create account', error.message);
-          return;
-        }
+  if (error) {
+    Alert.alert(
+      'Could not create account',
+      error.message
+    );
+    return;
+  }
 
-        Alert.alert(
-          'Welcome to The Den',
-          'Your Wookiees & Wolves account has been created.',
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.back(),
-            },
-          ]
-        );
-      } else {
+  if (data.session) {
+    Alert.alert(
+      'Welcome to The Den',
+      'Your Wookiees & Wolves account has been created.',
+      [
+        {
+          text: 'Continue',
+          onPress: () => router.back(),
+        },
+      ]
+    );
+  } else {
+    Alert.alert(
+      'Check your email',
+      'We sent you a confirmation link. Confirm your email, then sign in to your Wookiees & Wolves account.',
+      [
+        {
+          text: 'OK',
+          onPress: () => setMode('login'),
+        },
+      ]
+    );
+  }
+} else {
         const { error } =
           await supabase.auth.signInWithPassword({
             email: cleanEmail,

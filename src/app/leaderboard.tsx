@@ -1,5 +1,11 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import {
+    useFocusEffect,
+    useRouter,
+} from 'expo-router';
+import {
+    useCallback,
+    useState,
+} from 'react';
 import {
     Pressable,
     ScrollView,
@@ -28,12 +34,14 @@ export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentUserId, setCurrentUserId] =
     useState<string | null>(null);
+  const [userChecked, setUserChecked] = useState(false);  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [completedGames, setCompletedGames] =
   useState(0);
 
-  useEffect(() => {
+  useFocusEffect(
+  useCallback(() => {
     async function loadLeaderboard() {
       try {
         setLoading(true);
@@ -44,6 +52,7 @@ export default function LeaderboardScreen() {
         } = await supabase.auth.getUser();
 
         setCurrentUserId(user?.id ?? null);
+        setUserChecked(true);
         const {
   count: completedCount,
   error: resultsError,
@@ -88,9 +97,79 @@ if (resultsError) {
       }
     }
 
-    loadLeaderboard();
-  }, []);
+        loadLeaderboard();
+  }, [])
+);
+if (userChecked && !currentUserId) {
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <Pressable
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backButtonText}>
+            ‹ BACK
+          </Text>
+        </Pressable>
 
+        <Text style={styles.eyebrow}>
+          2026–27 PREDICTOR
+        </Text>
+
+        <Text style={styles.title}>
+          Leaderboard
+        </Text>
+
+        <Text style={styles.subtitle}>
+          See who's calling the Wolves season best.
+        </Text>
+
+        <View style={styles.statusCard}>
+          <Text style={styles.emptyTitle}>
+            Join the Predictor
+          </Text>
+
+          <Text style={styles.statusText}>
+            Sign in or create a W&W account to view the
+            Predictor leaderboard.
+          </Text>
+
+          <Pressable
+            style={styles.authButton}
+            onPress={() =>
+              router.push({
+                pathname: '/auth',
+                params: { mode: 'signup' },
+              })
+            }
+          >
+            <Text style={styles.authButtonText}>
+              CREATE ACCOUNT
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.signInButton}
+            onPress={() =>
+              router.push({
+                pathname: '/auth',
+                params: { mode: 'login' },
+              })
+            }
+          >
+            <Text style={styles.signInButtonText}>
+              SIGN IN
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -511,4 +590,36 @@ unlockFill: {
     lineHeight: 18,
     marginTop: 5,
   },
+  authButton: {
+  width: '100%',
+  backgroundColor: '#75C7F0',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 16,
+},
+
+authButtonText: {
+  color: '#07111F',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+signInButton: {
+  width: '100%',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 8,
+},
+
+signInButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
 });

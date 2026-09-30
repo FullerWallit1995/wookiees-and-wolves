@@ -535,8 +535,8 @@ if (!gamesLoaded) {
           </Text>
 
           <Text style={styles.record}>
-            {wins}–{losses}
-          </Text>
+  {user ? `${wins}–${losses}` : '—'}
+</Text>
 
           <View style={styles.recordStats}>
             <View style={styles.stat}>
@@ -559,7 +559,7 @@ if (!gamesLoaded) {
 {nextLockGame && (
   <View style={styles.nextLockCard}>
     <Text style={styles.nextLockEyebrow}>
-      NEXT PICK LOCK
+      NEXT GAME LOCK
     </Text>
 
     <Text style={styles.nextLockOpponent}>
@@ -1007,24 +1007,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#20354A',
   },
 
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 18,
-    marginBottom: 8,
-  },
-
-  progressText: {
-    color: '#8FA2B3',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-
-  progressPercent: {
-    color: '#75C7F0',
-    fontSize: 12,
-    fontWeight: '900',
-  },
 predictorGuestCard: {
   backgroundColor: '#101D2B',
   borderWidth: 1,
@@ -1080,35 +1062,7 @@ predictorGuestButtonText: {
   fontWeight: '900',
   letterSpacing: 1,
 },
-  progressTrack: {
-    height: 7,
-    backgroundColor: '#152536',
-    borderRadius: 10,
-    overflow: 'hidden',
-    marginBottom: 30,
-  },
-submitCard: {
-  backgroundColor: '#101D2B',
-  borderWidth: 1,
-  borderColor: '#31516B',
-  borderRadius: 16,
-  padding: 17,
-  marginBottom: 24,
-},
 
-submitStatus: {
-  color: '#75C7F0',
-  fontSize: 10,
-  fontWeight: '900',
-  letterSpacing: 1.5,
-},
-
-submitTitle: {
-  color: '#F3EFE3',
-  fontSize: 28,
-  fontWeight: '900',
-  marginTop: 6,
-},
 lockedPickText: {
   color: '#75C7F0',
   fontSize: 10,
@@ -1116,24 +1070,7 @@ lockedPickText: {
   letterSpacing: 1,
   marginTop: 6,
 },
-submitDescription: {
-  color: '#8FA2B3',
-  fontSize: 13,
-  lineHeight: 19,
-  marginTop: 6,
-},
 
-submitButton: {
-  backgroundColor: '#75C7F0',
-  borderRadius: 9,
-  paddingVertical: 12,
-  alignItems: 'center',
-  marginTop: 14,
-},
-
-submitButtonDisabled: {
-  opacity: 0.35,
-},
 
 submitButtonText: {
   color: '#07111F',
@@ -1141,11 +1078,6 @@ submitButtonText: {
   fontWeight: '900',
   letterSpacing: 1,
 },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#75C7F0',
-    borderRadius: 10,
-  },
 
   gamesHeader: {
     flexDirection: 'row',
@@ -1344,17 +1276,7 @@ disabledPickButton: {
   selectedButtonText: {
     color: '#FFFFFF',
   },
-resetButton: {
-  alignSelf: 'flex-end',
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  marginTop: -18,
-  marginBottom: 26,
-  borderRadius: 8,
-  borderWidth: 1,
-  borderColor: '#55383D',
-  backgroundColor: '#21181D',
-},
+
 loadingContainer: {
   flex: 1,
   alignItems: 'center',
@@ -1367,32 +1289,7 @@ loadingText: {
   fontSize: 15,
   fontWeight: '700',
 },
-resetButtonText: {
-  color: '#C98389',
-  fontSize: 10,
-  fontWeight: '900',
-  letterSpacing: 1,
-},
-deadlineCard: {
-  backgroundColor: '#101D2B',
-  borderWidth: 1,
-  borderColor: '#31516B',
-  borderRadius: 14,
-  padding: 15,
-  marginBottom: 20,
-},
 
-deadlineCardLocked: {
-  backgroundColor: '#21181D',
-  borderColor: '#55383D',
-},
-
-deadlineLabel: {
-  color: '#75C7F0',
-  fontSize: 9,
-  fontWeight: '900',
-  letterSpacing: 1.5,
-},
 predictorStatusCard: {
   backgroundColor: '#101D2B',
   borderWidth: 1,
@@ -1463,18 +1360,7 @@ nextLockPick: {
   letterSpacing: 1,
   marginTop: 12,
 },
-deadlineText: {
-  color: '#F3EFE3',
-  fontSize: 16,
-  fontWeight: '900',
-  marginTop: 5,
-},
 
-deadlineNote: {
-  color: '#8FA2B3',
-  fontSize: 12,
-  marginTop: 5,
-},
 resultRow: {
   flexDirection: 'row',
   alignItems: 'center',

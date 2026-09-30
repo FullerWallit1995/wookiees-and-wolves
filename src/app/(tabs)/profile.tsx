@@ -50,14 +50,6 @@ const [predictorAccuracy, setPredictorAccuracy] =
 const [predictorGraded, setPredictorGraded] =
   useState(0);
 
-const [
-  newEpisodeNotificationsEnabled,
-  setNewEpisodeNotificationsEnabled,
-] = useState(false);
-const [
-  notificationSaving,
-  setNotificationSaving,
-] = useState(false);
   const [predictorCompletedGames, setPredictorCompletedGames] =
   useState(0);
 
@@ -175,15 +167,19 @@ if (predictionError) {
 
   const values = Object.values(picks);
 
-  const wins = values.filter(
-    (pick) => pick === 'W'
-  ).length;
+  if (values.length === 0) {
+    setPredictorRecord(null);
+  } else {
+    const wins = values.filter(
+      (pick) => pick === 'W'
+    ).length;
 
-  const losses = values.filter(
-    (pick) => pick === 'L'
-  ).length;
+    const losses = values.filter(
+      (pick) => pick === 'L'
+    ).length;
 
-  setPredictorRecord(`${wins}–${losses}`);
+    setPredictorRecord(`${wins}–${losses}`);
+  }
 } else {
   setPredictorRecord(null);
 }
@@ -301,7 +297,6 @@ useEffect(() => {
         setPredictorEntries(0);
         setPredictorAccuracy(null);
         setPredictorGraded(0);
-setNotificationSaving(false);
         setPredictorCompletedGames(0);
         setLoading(false);
         setRole('member');
@@ -371,11 +366,10 @@ setNotificationSaving(false);
             Join The Den
           </Text>
 
-          <Text style={styles.guestDescription}>
-            Create an account to build your W&W profile and
-            eventually sync your Predictor and Den activity
-            across devices.
-          </Text>
+         <Text style={styles.infoText}>
+  Your W&W account keeps your Predictor picks, Den
+  activity and profile connected across devices.
+</Text>
 
           <Pressable
             style={styles.primaryButton}
@@ -686,74 +680,7 @@ username: {
   marginTop: 4,
 },
 
-profileCard: {
-  width: '100%',
-  backgroundColor: '#101D2B',
-  borderWidth: 1,
-  borderColor: '#20354A',
-  borderRadius: 18,
-  padding: 18,
-  marginTop: 26,
-},
 
-fieldLabel: {
-  color: '#7F94A7',
-  fontSize: 9,
-  fontWeight: '900',
-  letterSpacing: 1.2,
-  marginTop: 16,
-  marginBottom: 7,
-},
-
-input: {
-  backgroundColor: '#0B1723',
-  borderWidth: 1,
-  borderColor: '#2A4053',
-  borderRadius: 10,
-  paddingHorizontal: 13,
-  paddingVertical: 12,
-  color: '#F3EFE3',
-  fontSize: 15,
-},
-
-usernameInputRow: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#0B1723',
-  borderWidth: 1,
-  borderColor: '#2A4053',
-  borderRadius: 10,
-  paddingHorizontal: 13,
-},
-
-atSymbol: {
-  color: '#75C7F0',
-  fontSize: 15,
-  fontWeight: '900',
-  marginRight: 2,
-},
-
-usernameInput: {
-  flex: 1,
-  paddingVertical: 12,
-  color: '#F3EFE3',
-  fontSize: 15,
-},
-
-saveButton: {
-  backgroundColor: '#75C7F0',
-  borderRadius: 9,
-  paddingVertical: 12,
-  alignItems: 'center',
-  marginTop: 18,
-},
-
-saveButtonText: {
-  color: '#07111F',
-  fontSize: 10,
-  fontWeight: '900',
-  letterSpacing: 1,
-},
   guestIcon: {
     width: 96,
     height: 96,
@@ -888,17 +815,6 @@ avatarImage: {
     color: '#7F94A7',
     fontSize: 13,
     marginTop: 5,
-  },
-
-  statsCard: {
-    width: '100%',
-    flexDirection: 'row',
-    backgroundColor: '#101D2B',
-    borderWidth: 1,
-    borderColor: '#20354A',
-    borderRadius: 18,
-    paddingVertical: 20,
-    marginTop: 0,
   },
 
   stat: {
@@ -1059,62 +975,7 @@ denStatsRow: {
   flexDirection: 'row',
   minHeight: 52,
 },
-notificationCard: {
-  width: '100%',
-  backgroundColor: '#101D2B',
-  borderWidth: 1,
-  borderColor: '#20354A',
-  borderRadius: 18,
-  padding: 18,
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 14,
-  marginBottom: 8,
-},
 
-notificationInfo: {
-  flex: 1,
-},
-
-notificationTitle: {
-  color: '#F3EFE3',
-  fontSize: 15,
-  fontWeight: '900',
-},
-
-notificationDescription: {
-  color: '#7F94A7',
-  fontSize: 11,
-  lineHeight: 17,
-  marginTop: 4,
-},
-
-notificationToggle: {
-  minWidth: 54,
-  borderRadius: 9,
-  borderWidth: 1,
-  borderColor: '#3B4C5C',
-  backgroundColor: '#172636',
-  paddingHorizontal: 12,
-  paddingVertical: 10,
-  alignItems: 'center',
-},
-
-notificationToggleEnabled: {
-  backgroundColor: '#294B3B',
-  borderColor: '#5C9A76',
-},
-
-notificationToggleText: {
-  color: '#8FA2B3',
-  fontSize: 10,
-  fontWeight: '900',
-  letterSpacing: 1,
-},
-
-notificationToggleTextEnabled: {
-  color: '#8FD1A7',
-},
 denProfileButton: {
   backgroundColor: '#172A3C',
   borderWidth: 1,

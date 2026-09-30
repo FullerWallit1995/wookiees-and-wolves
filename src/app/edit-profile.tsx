@@ -129,9 +129,8 @@ export default function EditProfileScreen() {
     const cleanDisplayName = displayName.trim();
 
     const cleanUsername = username
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, '');
+  .trim()
+  .toLowerCase();
 
     if (!cleanDisplayName || !cleanUsername) {
       Alert.alert(
@@ -140,6 +139,20 @@ export default function EditProfileScreen() {
       );
       return;
     }
+    if (!/^[a-z0-9_]+$/.test(cleanUsername)) {
+  Alert.alert(
+    'Invalid username',
+    'Usernames can only contain letters, numbers and underscores.'
+  );
+  return;
+}
+if (cleanUsername.length < 3) {
+  Alert.alert(
+    'Username too short',
+    'Use at least 3 characters for your username.'
+  );
+  return;
+}
 
     try {
       setSaving(true);

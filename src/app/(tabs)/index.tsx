@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const [displayName, setDisplayName] =
   useState<string | null>(null);
+  const [isSignedIn, setIsSignedIn] = useState(false);
     const {
     latestEpisode,
     loading: episodesLoading,
@@ -37,9 +38,12 @@ useEffect(() => {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      setDisplayName(null);
-      return;
-    }
+  setDisplayName(null);
+  setIsSignedIn(false);
+  return;
+}
+
+setIsSignedIn(true);
 
     const { data, error } = await supabase
       .from('profiles')
@@ -178,16 +182,20 @@ useEffect(() => {
       <Text style={styles.kicker}>YOUR SEASON</Text>
 
       <Text style={styles.record}>
-        {predictorLoading ? '—' : `${wins}–${losses}`}
-      </Text>
+  {!isSignedIn || predictorLoading
+    ? '—'
+    : `${wins}–${losses}`}
+</Text>
 
       <Text style={styles.muted}>
-        {predictorLoading
-          ? 'Loading your predictions...'
-          : predicted === 82
-            ? 'All 82 games predicted'
-            : `${predicted} of 82 predicted • ${remaining} left`}
-      </Text>
+  {!isSignedIn
+    ? 'Sign in to make picks and track your season.'
+    : predictorLoading
+      ? 'Loading your predictions...'
+      : predicted === 82
+        ? 'All 82 games predicted'
+        : `${predicted} of 82 predicted • ${remaining} left`}
+</Text>
     </View>
 
     <Image
@@ -620,47 +628,6 @@ denLogo: {
     marginTop: 3,
   },
 
-  postCard: {
-    backgroundColor: '#101D2B',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#20354A',
-    padding: 18,
-    marginBottom: 12,
-  },
-
-  postCategory: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#16425B',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginBottom: 12,
-  },
-
-  starWarsCategory: {
-    backgroundColor: '#355044',
-  },
-
-  postCategoryText: {
-    color: '#F3EFE3',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-
-  postTitle: {
-    color: '#F3EFE3',
-    fontSize: 17,
-    fontWeight: '800',
-  },
-
-  postText: {
-    color: '#8FA2B3',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 5,
-  },
   greeting: {
   color: '#75C7F0',
   fontSize: 13,
