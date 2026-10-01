@@ -152,9 +152,9 @@ export default function AuthScreen() {
       }
 
       Alert.alert(
-        'Email sent',
-        'We sent you a new verification email.'
-      );
+  'Verification requested',
+  'If this email is eligible for verification, you’ll receive a new link shortly.'
+);
     } finally {
       setResending(false);
     }
@@ -193,8 +193,8 @@ export default function AuthScreen() {
           </Text>
 
           <Text style={styles.subtitle}>
-            You're almost a W&W Member.
-          </Text>
+  Verify your email to continue.
+</Text>
 
           <View style={styles.verificationCard}>
             <Text style={styles.verificationEyebrow}>
@@ -206,17 +206,20 @@ export default function AuthScreen() {
             </Text>
 
             <Text style={styles.verificationText}>
-              We sent a verification link to:
-            </Text>
+  If this email can be used to create a new
+  W&W account, you'll receive a verification
+  link at:
+</Text>
 
-            <Text style={styles.verificationEmail}>
-              {verificationEmail}
-            </Text>
+<Text style={styles.verificationEmail}>
+  {verificationEmail}
+</Text>
 
-            <Text style={styles.verificationText}>
-              Open the email and tap the verification
-              link to finish creating your W&W account.
-            </Text>
+<Text style={styles.verificationText}>
+  Open the email and tap the verification
+  link to continue. Already have a W&W
+  account? Sign in instead.
+</Text>
 
             <Pressable
               style={[
@@ -243,8 +246,8 @@ export default function AuthScreen() {
             }}
           >
             <Text style={styles.signInInsteadText}>
-              ALREADY VERIFIED? SIGN IN
-            </Text>
+  ALREADY A MEMBER? SIGN IN
+</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>

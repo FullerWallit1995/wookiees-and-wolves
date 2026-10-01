@@ -496,6 +496,7 @@ useEffect(() => {
     </Text>
   </Pressable>
 )}
+
 <Text style={styles.dashboardSectionLabel}>
   THE DEN
 </Text>
