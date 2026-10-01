@@ -165,6 +165,16 @@ const params = useLocalSearchParams<{
               secureTextEntry
               autoCapitalize="none"
             />
+            {mode === 'login' && (
+  <Pressable
+    style={styles.forgotPasswordButton}
+    onPress={() => router.push('/forgot-password')}
+  >
+    <Text style={styles.forgotPasswordText}>
+      FORGOT PASSWORD?
+    </Text>
+  </Pressable>
+)}
 
             <Pressable
               style={[
@@ -333,4 +343,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
+  forgotPasswordButton: {
+  alignSelf: 'flex-end',
+  marginTop: 10,
+  paddingVertical: 4,
+},
+
+forgotPasswordText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
 });
