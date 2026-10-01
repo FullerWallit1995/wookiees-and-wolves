@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -13,21 +14,27 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { supabase } from '@/lib/supabase';
-
 type Mode = 'login' | 'signup';
 
 export default function AuthScreen() {
   const router = useRouter();
-const params = useLocalSearchParams<{
-  mode?: string;
-}>();
+
+  const params = useLocalSearchParams<{
+    mode?: string;
+  }>();
+
   const [mode, setMode] = useState<Mode>(
-  params.mode === 'login' ? 'login' : 'signup'
-);
+    params.mode === 'login' ? 'login' : 'signup'
+  );
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const [verificationEmail, setVerificationEmail] =
+    useState<string | null>(null);
+
+  const [resending, setResending] = useState(false);
 
   async function submit() {
     const cleanEmail = email.trim().toLowerCase();
@@ -52,43 +59,52 @@ const params = useLocalSearchParams<{
       setLoading(true);
 
       if (mode === 'signup') {
-  const { data, error } = await supabase.auth.signUp({
-    email: cleanEmail,
-    password,
-  });
+        const { data, error } =
+          await supabase.auth.signUp({
+            email: cleanEmail,
+            password,
+            options: {
+              emailRedirectTo:
+                'wookieesandwolves://verify-email',
+            },
+          });
 
-  if (error) {
-    Alert.alert(
-      'Could not create account',
-      error.message
-    );
-    return;
-  }
+        if (error) {
+          Alert.alert(
+            'Could not create account',
+            error.message
+          );
+          return;
+        }
 
-  if (data.session) {
-    Alert.alert(
-      'Welcome to W&W',
-      'Your Wookiees & Wolves account has been created.',
-      [
-        {
-          text: 'Continue',
-          onPress: () => router.back(),
-        },
-      ]
-    );
-  } else {
-    Alert.alert(
-      'Check your email',
-      'We sent you a confirmation link. Confirm your email, then sign in to your Wookiees & Wolves account.',
-      [
-        {
-          text: 'OK',
-          onPress: () => setMode('login'),
-        },
-      ]
-    );
-  }
-} else {
+        /*
+         * If Supabase gives us a session immediately,
+         * email confirmation is not required.
+         *
+         * With Confirm Email enabled, normal new
+         * signups should instead reach the branch below.
+         */
+        if (data.session) {
+          Alert.alert(
+            'Welcome to W&W',
+            'Your Wookiees & Wolves account has been created.',
+            [
+              {
+                text: 'Continue',
+                onPress: () => router.back(),
+              },
+            ]
+          );
+
+          return;
+        }
+
+        /*
+         * No session means the account was created but
+         * the email still needs to be confirmed.
+         */
+        setVerificationEmail(cleanEmail);
+      } else {
         const { error } =
           await supabase.auth.signInWithPassword({
             email: cleanEmail,
@@ -96,7 +112,10 @@ const params = useLocalSearchParams<{
           });
 
         if (error) {
-          Alert.alert('Could not sign in', error.message);
+          Alert.alert(
+            'Could not sign in',
+            error.message
+          );
           return;
         }
 
@@ -107,11 +126,143 @@ const params = useLocalSearchParams<{
     }
   }
 
+  async function resendVerification() {
+    if (!verificationEmail) {
+      return;
+    }
+
+    try {
+      setResending(true);
+
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: verificationEmail,
+        options: {
+          emailRedirectTo:
+            'wookieesandwolves://verify-email',
+        },
+      });
+
+      if (error) {
+        Alert.alert(
+          'Could not resend email',
+          error.message
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Email sent',
+        'We sent you a new verification email.'
+      );
+    } finally {
+      setResending(false);
+    }
+  }
+
+  /*
+   * After a successful signup requiring verification,
+   * replace the normal auth form with a dedicated
+   * Check Your Email screen.
+   */
+  if (verificationEmail) {
+    return (
+      <SafeAreaView
+        style={styles.container}
+        edges={['top']}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>
+              ‹ BACK
+            </Text>
+          </Pressable>
+
+          <Text style={styles.eyebrow}>
+            W&W ACCOUNT
+          </Text>
+
+          <Text style={styles.title}>
+            Check Your Email
+          </Text>
+
+          <Text style={styles.subtitle}>
+            You're almost a W&W Member.
+          </Text>
+
+          <View style={styles.verificationCard}>
+            <Text style={styles.verificationEyebrow}>
+              VERIFY YOUR EMAIL
+            </Text>
+
+            <Text style={styles.verificationTitle}>
+              One more step
+            </Text>
+
+            <Text style={styles.verificationText}>
+              We sent a verification link to:
+            </Text>
+
+            <Text style={styles.verificationEmail}>
+              {verificationEmail}
+            </Text>
+
+            <Text style={styles.verificationText}>
+              Open the email and tap the verification
+              link to finish creating your W&W account.
+            </Text>
+
+            <Pressable
+              style={[
+                styles.secondaryButton,
+                resending && styles.disabledButton,
+              ]}
+              disabled={resending}
+              onPress={resendVerification}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {resending
+                  ? 'SENDING...'
+                  : 'RESEND VERIFICATION EMAIL'}
+              </Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            style={styles.signInInsteadButton}
+            onPress={() => {
+              setVerificationEmail(null);
+              setMode('login');
+              setPassword('');
+            }}
+          >
+            <Text style={styles.signInInsteadText}>
+              ALREADY VERIFIED? SIGN IN
+            </Text>
+          </Pressable>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView
+      style={styles.container}
+      edges={['top']}
+    >
       <KeyboardAvoidingView
         style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
       >
         <ScrollView
           contentContainerStyle={styles.content}
@@ -121,15 +272,19 @@ const params = useLocalSearchParams<{
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Text style={styles.backButtonText}>‹ BACK</Text>
+            <Text style={styles.backButtonText}>
+              ‹ BACK
+            </Text>
           </Pressable>
 
-          <Text style={styles.eyebrow}>W&W ACCOUNT</Text>
+          <Text style={styles.eyebrow}>
+            W&W ACCOUNT
+          </Text>
 
           <Text style={styles.title}>
             {mode === 'signup'
-  ? 'Become a W&W Member'
-  : 'Welcome Back'}
+              ? 'Become a W&W Member'
+              : 'Welcome Back'}
           </Text>
 
           <Text style={styles.subtitle}>
@@ -139,7 +294,9 @@ const params = useLocalSearchParams<{
           </Text>
 
           <View style={styles.formCard}>
-            <Text style={styles.label}>EMAIL</Text>
+            <Text style={styles.label}>
+              EMAIL
+            </Text>
 
             <TextInput
               style={styles.input}
@@ -152,7 +309,12 @@ const params = useLocalSearchParams<{
               autoCorrect={false}
             />
 
-            <Text style={[styles.label, styles.passwordLabel]}>
+            <Text
+              style={[
+                styles.label,
+                styles.passwordLabel,
+              ]}
+            >
               PASSWORD
             </Text>
 
@@ -165,16 +327,21 @@ const params = useLocalSearchParams<{
               secureTextEntry
               autoCapitalize="none"
             />
+
             {mode === 'login' && (
-  <Pressable
-    style={styles.forgotPasswordButton}
-    onPress={() => router.push('/forgot-password')}
-  >
-    <Text style={styles.forgotPasswordText}>
-      FORGOT PASSWORD?
-    </Text>
-  </Pressable>
-)}
+              <Pressable
+                style={styles.forgotPasswordButton}
+                onPress={() =>
+                  router.push('/forgot-password')
+                }
+              >
+                <Text
+                  style={styles.forgotPasswordText}
+                >
+                  FORGOT PASSWORD?
+                </Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={[
@@ -197,19 +364,25 @@ const params = useLocalSearchParams<{
           <View style={styles.switchRow}>
             <Text style={styles.switchPrompt}>
               {mode === 'signup'
-                ? 'Already have an account?'
+                ? 'Already a W&W Member?'
                 : "Don't have an account?"}
             </Text>
 
             <Pressable
-              onPress={() =>
+              onPress={() => {
                 setMode(
-                  mode === 'signup' ? 'login' : 'signup'
-                )
-              }
+                  mode === 'signup'
+                    ? 'login'
+                    : 'signup'
+                );
+
+                setPassword('');
+              }}
             >
               <Text style={styles.switchAction}>
-                {mode === 'signup' ? 'SIGN IN' : 'CREATE ONE'}
+                {mode === 'signup'
+                  ? 'SIGN IN'
+                  : 'JOIN W&W'}
               </Text>
             </Pressable>
           </View>
@@ -306,6 +479,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginTop: 10,
+    paddingVertical: 4,
+  },
+
+  forgotPasswordText: {
+    color: '#75C7F0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+
   primaryButton: {
     backgroundColor: '#75C7F0',
     borderRadius: 10,
@@ -343,16 +529,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '900',
   },
-  forgotPasswordButton: {
-  alignSelf: 'flex-end',
-  marginTop: 10,
-  paddingVertical: 4,
-},
 
-forgotPasswordText: {
-  color: '#75C7F0',
-  fontSize: 9,
-  fontWeight: '900',
-  letterSpacing: 0.8,
-},
+  verificationCard: {
+    backgroundColor: '#101D2B',
+    borderWidth: 1,
+    borderColor: '#31516B',
+    borderRadius: 18,
+    padding: 20,
+  },
+
+  verificationEyebrow: {
+    color: '#75C7F0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1.5,
+  },
+
+  verificationTitle: {
+    color: '#F3EFE3',
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 6,
+  },
+
+  verificationText: {
+    color: '#8FA2B3',
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 8,
+  },
+
+  verificationEmail: {
+    color: '#F3EFE3',
+    fontSize: 14,
+    fontWeight: '800',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: '#31516B',
+    borderRadius: 9,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 18,
+  },
+
+  secondaryButtonText: {
+    color: '#75C7F0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+
+  signInInsteadButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 10,
+  },
+
+  signInInsteadText: {
+    color: '#75C7F0',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
 });
