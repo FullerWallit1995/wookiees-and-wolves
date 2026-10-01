@@ -4,7 +4,7 @@ import {
   useLocalSearchParams,
   useRouter,
 } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
@@ -12,12 +12,14 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Category = 'pack' | 'cantina';
 type Filter = 'all' | Category;
+type ContentFilter = 'all' | 'post' | 'poll';
 
 type Post = {
   id: number;
@@ -44,6 +46,20 @@ type Poll = {
 };
 
 type FeedItem = Post | Poll;
+type DenFeedRow = {
+  item_type: 'post' | 'poll';
+  item_id: number;
+  category: Category;
+  content: string;
+  created_at: string;
+  options: {
+    id: number;
+    text: string;
+    sort_order: number;
+  }[] | null;
+  total_count: number;
+};
+
 function formatFeedTime(createdAt: string) {
   const created = new Date(createdAt);
   const now = new Date();
@@ -87,149 +103,134 @@ export default function DenScreen() {
   filter?: string;
 }>();
 const router = useRouter();
-const [databasePosts, setDatabasePosts] = useState<Post[]>([]);
-const [postsLoading, setPostsLoading] = useState(true);
-const [databasePolls, setDatabasePolls] = useState<Poll[]>([]);
-const [feedError, setFeedError] = useState(false);
-const [pollsLoading, setPollsLoading] = useState(true);
+const [feedItems, setFeedItems] =
+  useState<FeedItem[]>([]);
+
+const [feedLoading, setFeedLoading] =
+  useState(true);
+
+const [feedError, setFeedError] =
+  useState(false);
+
+const [totalFeedCount, setTotalFeedCount] =
+  useState(0);
+  const [loadingMore, setLoadingMore] =
+  useState(false);
 const [user, setUser] = useState<User | null>(null);
+  const [activeFilter, setActiveFilter] =
+  useState<Filter>('all');
+  const [contentFilter, setContentFilter] =
+  useState<ContentFilter>('all');
+  const [searchText, setSearchText] =
+  useState('');
 
-useEffect(() => {
-  async function loadPosts() {
-    try {
-      setPostsLoading(true);
-      setFeedError(false);
+const [activeSearch, setActiveSearch] =
+  useState('');
 
-      const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .eq('published', true)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-  console.log('Could not load Den posts:', error);
-  setFeedError(true);
-  return;
-}
-
-      const formattedPosts: Post[] = (data ?? []).map(
-        (post) => ({
-          id: post.id,
-          type: 'post',
-          category: post.category,
-          text: post.content,
-          likes: 0,
-          time: formatFeedTime(post.created_at),
-        })
-      );
-
-      setDatabasePosts(formattedPosts);
-    } finally {
-      setPostsLoading(false);
-    }
-  }
-
-  loadPosts();
-}, []);
-  useEffect(() => {
-  async function loadPolls() {
-    try {
-      setPollsLoading(true);
-
-      const { data: polls, error: pollsError } = await supabase
-        .from('polls')
-        .select('*')
-        .eq('published', true)
-        .order('created_at', { ascending: false });
-
-      if (pollsError) {
-  console.log('Could not load Den polls:', pollsError);
-  setFeedError(true);
-  return;
-}
-
-      const { data: options, error: optionsError } = await supabase
-        .from('poll_options')
-        .select('*')
-        .order('sort_order', { ascending: true });
-
-      if (optionsError) {
-  console.log('Could not load poll options:', optionsError);
-  setFeedError(true);
-  return;
-}
-
-      const formattedPolls: Poll[] = (polls ?? []).map((poll) => ({
-        id: poll.id,
-        type: 'poll',
-        category: poll.category,
-        question: poll.question,
-        time: formatFeedTime(poll.created_at),
-
-        options: (options ?? [])
-          .filter((option) => option.poll_id === poll.id)
-          .map((option) => ({
-            id: String(option.id),
-            text: option.option_text,
-            votes: 0,
-          })),
-      }));
-
-      setDatabasePolls(formattedPolls);
-          } finally {
-      setPollsLoading(false);
-    }
+async function loadFeed(
+  offset = 0,
+  append = false
+) {
+  try {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setFeedLoading(true);
     }
 
-    loadPolls();
-  }, []);
-  useEffect(() => {
-async function loadVotes() {
-  if (!user) {
-    setPollVotes({});
-    return;
-  }
+    setFeedError(false);
 
-    const { data: votes, error } = await supabase
-      .from('poll_votes')
-      .select('*');
+    const { data, error } = await supabase.rpc(
+      'get_den_feed',
+      {
+        p_category:
+          activeFilter === 'all'
+            ? null
+            : activeFilter,
+        p_type:
+  contentFilter === 'all'
+    ? null
+    : contentFilter,
+        p_search:
+  activeSearch.trim() === ''
+    ? null
+    : activeSearch.trim(),
+        p_limit: 20,
+        p_offset: offset,
+      }
+    );
 
     if (error) {
-      console.log('Could not load poll votes:', error);
+      console.log(
+        'Could not load Den feed:',
+        error
+      );
+
+      setFeedError(true);
       return;
     }
 
-    const voteCounts: Record<string, number> = {};
-    const myVotes: Record<number, string> = {};
+    const rows =
+      (data ?? []) as DenFeedRow[];
 
-    (votes ?? []).forEach((vote) => {
-      const optionId = String(vote.option_id);
+    const formattedFeed: FeedItem[] =
+      rows.map((row) => {
+        if (row.item_type === 'post') {
+          return {
+            id: row.item_id,
+            type: 'post',
+            category: row.category,
+            text: row.content,
+            likes: 0,
+            time: formatFeedTime(
+              row.created_at
+            ),
+          };
+        }
 
-      voteCounts[optionId] =
-        (voteCounts[optionId] ?? 0) + 1;
+        return {
+          id: row.item_id,
+          type: 'poll',
+          category: row.category,
+          question: row.content,
+          time: formatFeedTime(
+            row.created_at
+          ),
+          options: (row.options ?? []).map(
+            (option) => ({
+              id: String(option.id),
+              text: option.text,
+              votes: 0,
+            })
+          ),
+        };
+      });
 
-      const isMyVote = vote.user_id === user.id;
+    if (append) {
+      setFeedItems((current) => [
+        ...current,
+        ...formattedFeed,
+      ]);
+    } else {
+      setFeedItems(formattedFeed);
+    }
 
-if (isMyVote) {
-  myVotes[vote.poll_id] = optionId;
-}
-    });
-
-    setPollVotes(myVotes);
-
-    setDatabasePolls((currentPolls) =>
-      currentPolls.map((poll) => ({
-        ...poll,
-        options: poll.options.map((option) => ({
-          ...option,
-          votes: voteCounts[option.id] ?? 0,
-        })),
-      }))
+    setTotalFeedCount(
+      Number(rows[0]?.total_count ?? 0)
     );
+  } finally {
+    setFeedLoading(false);
+    setLoadingMore(false);
   }
+}
+useEffect(() => {
+  loadFeed(0, false);
+}, [
+  activeFilter,
+  contentFilter,
+  activeSearch,
+]);
 
-  loadVotes();
-}, [user, databasePolls.length]);
 useEffect(() => {
   async function loadUser() {
     const {
@@ -252,50 +253,8 @@ useEffect(() => {
   };
 }, []);
 
-useEffect(() => {
-async function loadLikes() {
-  if (!user) {
-    setLikedPosts({});
-    return;
-  }
 
-    const { data: likes, error } = await supabase
-      .from('post_likes')
-      .select('*');
 
-    if (error) {
-      console.log('Could not load post likes:', error);
-      return;
-    }
-
-    const likeCounts: Record<number, number> = {};
-    const myLikes: Record<number, boolean> = {};
-
-    (likes ?? []).forEach((like) => {
-      likeCounts[like.post_id] =
-        (likeCounts[like.post_id] ?? 0) + 1;
-
-      const isMyLike = like.user_id === user.id;
-
-if (isMyLike) {
-  myLikes[like.post_id] = true;
-}
-    });
-
-    setLikedPosts(myLikes);
-
-    setDatabasePosts((currentPosts) =>
-      currentPosts.map((post) => ({
-        ...post,
-        likes: likeCounts[post.id] ?? 0,
-      }))
-    );
-  }
-
-  loadLikes();
-}, [user, databasePosts.length]);
-  const [activeFilter, setActiveFilter] =
-  useState<Filter>('all');
 useEffect(() => {
   if (params.filter === 'pack') {
     setActiveFilter('pack');
@@ -315,21 +274,132 @@ useEffect(() => {
   const [pollVotes, setPollVotes] =
     useState<Record<number, string>>({});
 
-const combinedFeed: FeedItem[] = [
-  ...databasePosts,
-  ...databasePolls,
-];
+const visibleFeed = feedItems;
 
-const visibleFeed = useMemo(() => {
-  if (activeFilter === 'all') {
-    return combinedFeed;
+
+useEffect(() => {
+  async function loadInteractions() {
+    if (feedItems.length === 0) {
+      setLikedPosts({});
+      setPollVotes({});
+      return;
+    }
+
+    const postIds = feedItems
+      .filter(
+        (item): item is Post =>
+          item.type === 'post'
+      )
+      .map((item) => item.id);
+
+    const pollIds = feedItems
+      .filter(
+        (item): item is Poll =>
+          item.type === 'poll'
+      )
+      .map((item) => item.id);
+
+    const [
+      { data: likes, error: likesError },
+      { data: votes, error: votesError },
+    ] = await Promise.all([
+      postIds.length > 0
+        ? supabase
+            .from('post_likes')
+            .select('post_id, user_id')
+            .in('post_id', postIds)
+        : Promise.resolve({
+            data: [],
+            error: null,
+          }),
+
+      pollIds.length > 0
+        ? supabase
+            .from('poll_votes')
+            .select('poll_id, option_id, user_id')
+            .in('poll_id', pollIds)
+        : Promise.resolve({
+            data: [],
+            error: null,
+          }),
+    ]);
+
+    if (likesError) {
+      console.log(
+        'Could not load post likes:',
+        likesError
+      );
+    }
+
+    if (votesError) {
+      console.log(
+        'Could not load poll votes:',
+        votesError
+      );
+    }
+
+    const likeCounts: Record<number, number> = {};
+    const myLikes: Record<number, boolean> = {};
+
+    (likes ?? []).forEach((like) => {
+      likeCounts[like.post_id] =
+        (likeCounts[like.post_id] ?? 0) + 1;
+
+      if (
+        user &&
+        like.user_id === user.id
+      ) {
+        myLikes[like.post_id] = true;
+      }
+    });
+
+    const voteCounts: Record<string, number> = {};
+    const myVotes: Record<number, string> = {};
+
+    (votes ?? []).forEach((vote) => {
+      const optionId = String(vote.option_id);
+
+      voteCounts[optionId] =
+        (voteCounts[optionId] ?? 0) + 1;
+
+      if (
+        user &&
+        vote.user_id === user.id
+      ) {
+        myVotes[vote.poll_id] = optionId;
+      }
+    });
+
+    setLikedPosts(myLikes);
+    setPollVotes(myVotes);
+
+    setFeedItems((currentItems) =>
+      currentItems.map((item) => {
+        if (item.type === 'post') {
+          return {
+            ...item,
+            likes:
+              likeCounts[item.id] ?? 0,
+          };
+        }
+
+        return {
+          ...item,
+          options: item.options.map(
+            (option) => ({
+              ...option,
+              votes:
+                voteCounts[option.id] ?? 0,
+            })
+          ),
+        };
+      })
+    );
   }
-  return combinedFeed.filter(
-    (item) => item.category === activeFilter
-  );
-}, [activeFilter, databasePosts, databasePolls]);
-const feedLoading =
-  postsLoading || pollsLoading;
+
+  loadInteractions();
+}, [feedItems.length, user]);
+
 function promptSignIn() {
   Alert.alert(
     'Join the conversation',
@@ -397,21 +467,24 @@ async function toggleLike(postId: number) {
     [postId]: !alreadyLiked,
   }));
 
-  setDatabasePosts((currentPosts) =>
-    currentPosts.map((post) => {
-      if (post.id !== postId) {
-        return post;
-      }
+setFeedItems((currentItems) =>
+  currentItems.map((item) => {
+    if (
+      item.type !== 'post' ||
+      item.id !== postId
+    ) {
+      return item;
+    }
 
-      return {
-        ...post,
-        likes: Math.max(
-          0,
-          post.likes + (alreadyLiked ? -1 : 1)
-        ),
-      };
-    })
-  );
+    return {
+      ...item,
+      likes: Math.max(
+        0,
+        item.likes + (alreadyLiked ? -1 : 1)
+      ),
+    };
+  })
+);
 }
 
 async function vote(
@@ -473,36 +546,39 @@ async function vote(
     [pollId]: optionId,
   }));
 
-  setDatabasePolls((currentPolls) =>
-    currentPolls.map((poll) => {
-      if (poll.id !== pollId) {
-        return poll;
-      }
+  setFeedItems((currentItems) =>
+  currentItems.map((item) => {
+    if (
+      item.type !== 'poll' ||
+      item.id !== pollId
+    ) {
+      return item;
+    }
 
-      return {
-        ...poll,
-        options: poll.options.map((option) => {
-          let newVoteCount = option.votes;
+    return {
+      ...item,
+      options: item.options.map((option) => {
+        let newVoteCount = option.votes;
 
-          if (
-            previousOptionId &&
-            option.id === previousOptionId
-          ) {
-            newVoteCount -= 1;
-          }
+        if (
+          previousOptionId &&
+          option.id === previousOptionId
+        ) {
+          newVoteCount -= 1;
+        }
 
-          if (option.id === optionId) {
-            newVoteCount += 1;
-          }
+        if (option.id === optionId) {
+          newVoteCount += 1;
+        }
 
-          return {
-            ...option,
-            votes: Math.max(0, newVoteCount),
-          };
-        }),
-      };
-    })
-  );
+        return {
+          ...option,
+          votes: Math.max(0, newVoteCount),
+        };
+      }),
+    };
+  })
+);
 }
 
   
@@ -617,6 +693,70 @@ async function vote(
         ? 'THE CANTINA'
         : 'ALL OF THE DEN'}
   </Text>
+</View>
+<View style={styles.searchSection}>
+  <TextInput
+    style={styles.searchInput}
+    value={searchText}
+    onChangeText={setSearchText}
+    placeholder="Search The Den..."
+    placeholderTextColor="#60778A"
+    returnKeyType="search"
+    autoCorrect={false}
+    onSubmitEditing={() =>
+      setActiveSearch(searchText.trim())
+    }
+  />
+
+  {activeSearch ? (
+    <Pressable
+      style={styles.clearSearchButton}
+      onPress={() => {
+        setSearchText('');
+        setActiveSearch('');
+      }}
+    >
+      <Text style={styles.clearSearchText}>
+        CLEAR
+      </Text>
+    </Pressable>
+  ) : (
+    <Pressable
+      style={styles.searchButton}
+      onPress={() =>
+        setActiveSearch(searchText.trim())
+      }
+    >
+      <Text style={styles.searchButtonText}>
+        SEARCH
+      </Text>
+    </Pressable>
+  )}
+</View>
+<View style={styles.contentFilterSection}>
+  <Text style={styles.contentFilterLabel}>
+    SHOW
+  </Text>
+
+  <View style={styles.contentFilters}>
+    <ContentFilterButton
+      label="EVERYTHING"
+      active={contentFilter === 'all'}
+      onPress={() => setContentFilter('all')}
+    />
+
+    <ContentFilterButton
+      label="POSTS"
+      active={contentFilter === 'post'}
+      onPress={() => setContentFilter('post')}
+    />
+
+    <ContentFilterButton
+      label="POLLS"
+      active={contentFilter === 'poll'}
+      onPress={() => setContentFilter('poll')}
+    />
+  </View>
 </View>
 
 {/* FEED */}
@@ -784,6 +924,31 @@ async function vote(
           );
           })
 )}
+{!feedLoading &&
+  !feedError &&
+  feedItems.length < totalFeedCount && (
+    <Pressable
+      style={[
+        styles.loadMoreButton,
+        loadingMore &&
+          styles.loadMoreButtonDisabled,
+      ]}
+      disabled={loadingMore}
+      onPress={() =>
+        loadFeed(feedItems.length, true)
+      }
+    >
+      <Text style={styles.loadMoreButtonText}>
+        {loadingMore
+          ? 'LOADING...'
+          : 'LOAD MORE'}
+      </Text>
+
+      <Text style={styles.loadMoreCount}>
+        {feedItems.length} of {totalFeedCount}
+      </Text>
+    </Pressable>
+  )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -810,6 +975,36 @@ function FilterButton({
         style={[
           styles.filterText,
           active && styles.filterTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+function ContentFilterButton({
+  label,
+  active,
+  onPress,
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={[
+        styles.contentFilterButton,
+        active &&
+          styles.contentFilterButtonActive,
+      ]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.contentFilterText,
+          active &&
+            styles.contentFilterTextActive,
         ]}
       >
         {label}
@@ -1241,5 +1436,125 @@ guestSecondaryButtonText: {
   fontSize: 9,
   fontWeight: '900',
   letterSpacing: 1,
+},
+loadMoreButton: {
+  borderWidth: 1,
+  borderColor: '#31516B',
+  backgroundColor: '#101D2B',
+  borderRadius: 12,
+  paddingVertical: 13,
+  alignItems: 'center',
+  marginTop: 4,
+  marginBottom: 10,
+},
+
+loadMoreButtonDisabled: {
+  opacity: 0.55,
+},
+
+loadMoreButtonText: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+loadMoreCount: {
+  color: '#60778A',
+  fontSize: 9,
+  fontWeight: '700',
+  marginTop: 3,
+},
+contentFilterSection: {
+  marginTop: -10,
+  marginBottom: 18,
+},
+
+contentFilterLabel: {
+  color: '#60778A',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1.3,
+  marginBottom: 7,
+},
+
+contentFilters: {
+  flexDirection: 'row',
+  gap: 7,
+},
+
+contentFilterButton: {
+  flex: 1,
+  borderWidth: 1,
+  borderColor: '#263C4F',
+  borderRadius: 8,
+  paddingVertical: 8,
+  alignItems: 'center',
+},
+
+contentFilterButtonActive: {
+  backgroundColor: '#172A3C',
+  borderColor: '#75C7F0',
+},
+
+contentFilterText: {
+  color: '#60778A',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.7,
+},
+
+contentFilterTextActive: {
+  color: '#75C7F0',
+},
+searchSection: {
+  flexDirection: 'row',
+  gap: 8,
+  marginTop: -10,
+  marginBottom: 18,
+},
+
+searchInput: {
+  flex: 1,
+  backgroundColor: '#0B1723',
+  borderWidth: 1,
+  borderColor: '#2A4053',
+  borderRadius: 9,
+  paddingHorizontal: 13,
+  paddingVertical: 10,
+  color: '#F3EFE3',
+  fontSize: 13,
+},
+
+searchButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingHorizontal: 13,
+  justifyContent: 'center',
+},
+
+searchButtonText: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+clearSearchButton: {
+  backgroundColor: '#21181D',
+  borderWidth: 1,
+  borderColor: '#55383D',
+  borderRadius: 9,
+  paddingHorizontal: 13,
+  justifyContent: 'center',
+},
+
+clearSearchText: {
+  color: '#C98389',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 0.8,
 },
 });
