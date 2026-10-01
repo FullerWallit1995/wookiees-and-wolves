@@ -1,7 +1,15 @@
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
-import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import {
+  useFocusEffect,
+  useRouter,
+} from 'expo-router';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   Alert,
   Pressable,
@@ -184,6 +192,82 @@ useEffect(() => {
 
   loadPredictions();
 }, [user]);
+
+useFocusEffect(
+  useCallback(() => {
+    async function refreshPredictor() {
+      const {
+        data: { user: currentUser },
+      } = await supabase.auth.getUser();
+
+      setUser(currentUser);
+
+      const { data: resultData, error: resultError } =
+        await supabase
+          .from('predictor_results')
+          .select('game_id, result, final')
+          .eq('season', '2026-27')
+          .eq('final', true);
+
+      if (resultError) {
+        console.log(
+          'Could not refresh Predictor results:',
+          resultError
+        );
+      } else {
+        const refreshedResults: Record<
+          number,
+          Prediction
+        > = {};
+
+        (resultData ?? []).forEach((row) => {
+          if (
+            row.result === 'W' ||
+            row.result === 'L'
+          ) {
+            refreshedResults[row.game_id] =
+              row.result;
+          }
+        });
+
+        setResults(refreshedResults);
+      }
+
+      if (!currentUser) {
+        setPredictions({});
+        return;
+      }
+
+      const {
+        data: predictionData,
+        error: predictionError,
+      } = await supabase
+        .from('predictor_predictions')
+        .select('predictions')
+        .eq('user_id', currentUser.id)
+        .eq('season', '2026-27')
+        .maybeSingle();
+
+      if (predictionError) {
+        console.log(
+          'Could not refresh Predictor predictions:',
+          predictionError
+        );
+        return;
+      }
+
+      setPredictions(
+        (predictionData?.predictions ?? {}) as Record<
+          number,
+          Prediction
+        >
+      );
+    }
+
+    refreshPredictor();
+  }, [])
+);
+
 useEffect(() => {
   async function loadLeaderboardStatus() {
     if (!user) {
