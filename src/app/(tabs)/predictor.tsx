@@ -46,7 +46,17 @@ const [results, setResults] = useState<
     Record<number, Prediction>
   >({});
   const [user, setUser] = useState<User | null>(null);
+const [leaderboardRank, setLeaderboardRank] =
+  useState<number | null>(null);
 
+const [qualifiedMembers, setQualifiedMembers] =
+  useState(0);
+
+const [leaderboardGraded, setLeaderboardGraded] =
+  useState(0);
+
+const [leaderboardQualified, setLeaderboardQualified] =
+  useState(false);
 
 useEffect(() => {
   async function loadGames() {
@@ -174,6 +184,75 @@ useEffect(() => {
 
   loadPredictions();
 }, [user]);
+useEffect(() => {
+  async function loadLeaderboardStatus() {
+    if (!user) {
+      setLeaderboardRank(null);
+      setQualifiedMembers(0);
+      setLeaderboardGraded(0);
+      setLeaderboardQualified(false);
+      return;
+    }
+
+    const { data, error } = await supabase.rpc(
+      'get_predictor_leaderboard',
+      {
+        target_season: '2026-27',
+      }
+    );
+
+    if (error) {
+      console.log(
+        'Could not load Predictor leaderboard status:',
+        error
+      );
+      return;
+    }
+
+    const entries = data ?? [];
+
+    const qualified = entries.filter(
+      (entry: any) => entry.qualified
+    );
+
+    setQualifiedMembers(qualified.length);
+
+    const currentEntry = entries.find(
+      (entry: any) => entry.user_id === user.id
+    );
+
+    if (!currentEntry) {
+      setLeaderboardRank(null);
+      setLeaderboardGraded(0);
+      setLeaderboardQualified(false);
+      return;
+    }
+
+    setLeaderboardGraded(
+      Number(currentEntry.graded) || 0
+    );
+
+    setLeaderboardQualified(
+      !!currentEntry.qualified
+    );
+
+    if (currentEntry.qualified) {
+      const rank =
+        qualified.findIndex(
+          (entry: any) =>
+            entry.user_id === user.id
+        ) + 1;
+
+      setLeaderboardRank(
+        rank > 0 ? rank : null
+      );
+    } else {
+      setLeaderboardRank(null);
+    }
+  }
+
+  loadLeaderboardStatus();
+}, [user, results]);
 
 const [expandedMonths, setExpandedMonths] = useState<
   Record<string, boolean>
@@ -281,6 +360,15 @@ function getMonthStats(month: string) {
 }
 
   const predicted = wins + losses;
+  const actualWins = Object.values(results).filter(
+  (result) => result === 'W'
+).length;
+
+const actualLosses = Object.values(results).filter(
+  (result) => result === 'L'
+).length;
+
+const completedGames = actualWins + actualLosses;
   const openGames = games.filter(
   (game) =>
     game.available !== false &&
@@ -529,31 +617,46 @@ if (!gamesLoaded) {
         </Text>
       
         {/* RECORD */}
-        <View style={styles.recordCard}>
-          <Text style={styles.recordLabel}>
-            YOUR PREDICTED RECORD
-          </Text>
+        {/* RECORD COMPARISON */}
+<View style={styles.recordCard}>
+  <View style={styles.recordComparison}>
+    <View style={styles.recordSide}>
+      <Text style={styles.recordLabel}>
+        PREDICTED RECORD
+      </Text>
 
-          <Text style={styles.record}>
-  {user ? `${wins}–${losses}` : '—'}
-</Text>
+      <Text style={styles.comparisonRecord}>
+        {user ? `${wins}–${losses}` : '—'}
+      </Text>
 
-          <View style={styles.recordStats}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{wins}</Text>
-              <Text style={styles.statLabel}>WINS</Text>
-            </View>
+      <Text style={styles.recordSubtext}>
+        {user
+          ? `${predicted} games picked`
+          : 'Sign in to make picks'}
+      </Text>
+    </View>
 
-            <View style={styles.divider} />
+    <View style={styles.recordDivider} />
 
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{losses}</Text>
-              <Text style={styles.statLabel}>LOSSES</Text>
-            </View>
+    <View style={styles.recordSide}>
+      <Text style={styles.recordLabel}>
+        ACTUAL RECORD
+      </Text>
 
-            
-          </View>
-        </View>
+      <Text style={styles.comparisonRecord}>
+        {completedGames > 0
+          ? `${actualWins}–${actualLosses}`
+          : '0–0'}
+      </Text>
+
+      <Text style={styles.recordSubtext}>
+        {completedGames === 1
+          ? '1 game completed'
+          : `${completedGames} games completed`}
+      </Text>
+    </View>
+  </View>
+</View>
 
 
 {nextLockGame && (
@@ -669,15 +772,29 @@ if (!gamesLoaded) {
   style={styles.leaderboardButton}
   onPress={() => router.push('/leaderboard')}
 >
-  <View>
-    <Text style={styles.leaderboardEyebrow}>
-      COMMUNITY
-    </Text>
+  <View style={styles.leaderboardInfo}>
+  <Text style={styles.leaderboardEyebrow}>
+    COMMUNITY
+  </Text>
 
-    <Text style={styles.leaderboardTitle}>
-      Predictor Leaderboard
+  <Text style={styles.leaderboardTitle}>
+    Predictor Leaderboard
+  </Text>
+
+  {user && (
+    <Text style={styles.leaderboardStatus}>
+      {Object.keys(results).length < 10
+        ? `${Object.keys(results).length}/10 games until leaderboard opens`
+        : leaderboardQualified &&
+            leaderboardRank
+          ? `#${leaderboardRank} of ${qualifiedMembers} qualified`
+          : `${leaderboardGraded}/10 graded picks • ${Math.max(
+              0,
+              10 - leaderboardGraded
+            )} to qualify`}
     </Text>
-  </View>
+  )}
+</View>
 
   <Text style={styles.leaderboardArrow}>›</Text>
 </Pressable>
@@ -966,42 +1083,39 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2,
   },
+recordComparison: {
+  width: '100%',
+  flexDirection: 'row',
+  alignItems: 'stretch',
+},
 
-  record: {
-    color: '#F3EFE3',
-    fontSize: 58,
-    lineHeight: 68,
-    fontWeight: '900',
-  },
+recordSide: {
+  flex: 1,
+  alignItems: 'center',
+  paddingHorizontal: 8,
+},
 
-  recordStats: {
-    flexDirection: 'row',
-    width: '100%',
-    marginTop: 10,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#20354A',
-  },
+recordDivider: {
+  width: 1,
+  backgroundColor: '#20354A',
+  marginHorizontal: 8,
+},
 
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
+comparisonRecord: {
+  color: '#F3EFE3',
+  fontSize: 36,
+  lineHeight: 44,
+  fontWeight: '900',
+  marginTop: 5,
+},
 
-  statNumber: {
-    color: '#F3EFE3',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-
-  statLabel: {
-    color: '#7F94A7',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    marginTop: 3,
-  },
-
+recordSubtext: {
+  color: '#7F94A7',
+  fontSize: 9,
+  fontWeight: '700',
+  textAlign: 'center',
+  marginTop: 2,
+},
   divider: {
     width: 1,
     backgroundColor: '#20354A',
@@ -1609,6 +1723,17 @@ rankSummaryTotal: {
   color: '#8FA2B3',
   fontSize: 11,
   fontWeight: '700',
+},
+leaderboardInfo: {
+  flex: 1,
+  paddingRight: 12,
+},
+
+leaderboardStatus: {
+  color: '#8FA2B3',
+  fontSize: 10,
+  fontWeight: '700',
+  marginTop: 5,
 },
   demoNote: {
     color: '#60778A',

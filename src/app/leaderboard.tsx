@@ -28,6 +28,7 @@ type LeaderboardEntry = {
   qualified: boolean;
 };
 
+
 export default function LeaderboardScreen() {
   const router = useRouter();
 
@@ -91,7 +92,10 @@ if (resultsError) {
           return;
         }
 
-        setEntries((data ?? []) as LeaderboardEntry[]);
+        const realEntries =
+  (data ?? []) as LeaderboardEntry[];
+
+setEntries((data ?? []) as LeaderboardEntry[]);
       } finally {
         setLoading(false);
       }
@@ -127,6 +131,17 @@ if (userChecked && !currentUserId) {
         <Text style={styles.subtitle}>
           See who's calling the Wolves season best.
         </Text>
+        <View style={styles.infoCard}>
+  <Text style={styles.infoTitle}>
+    How rankings work
+  </Text>
+
+  <Text style={styles.infoText}>
+    Rankings are based on prediction accuracy. Members
+    need at least 10 graded picks to qualify. Ties are
+    broken by more graded picks, then more correct picks.
+  </Text>
+</View>
 
         <View style={styles.guestPreview}>
           <View style={styles.guestPreviewHeader}>
@@ -254,6 +269,17 @@ if (userChecked && !currentUserId) {
         <Text style={styles.subtitle}>
           See who's calling the Wolves season best.
         </Text>
+        <View style={styles.infoCard}>
+  <Text style={styles.infoTitle}>
+    How rankings work
+  </Text>
+
+  <Text style={styles.infoText}>
+    Rankings are based on prediction accuracy. Members
+    need at least 10 graded picks to qualify. Ties are
+    broken by more graded picks, then more correct picks.
+  </Text>
+</View>
 {completedGames >= 10 && (
         <View style={styles.headerRow}>
           <Text style={[styles.headerText, styles.rankColumn]}>
@@ -413,18 +439,7 @@ if (userChecked && !currentUserId) {
   })
 )}  
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            How scoring works
-          </Text>
-
-          <Text style={styles.infoText}>
-  Rankings are based on prediction accuracy from games
-  with official final results. Members need at least 10
-  graded picks to qualify for a leaderboard rank.
-  Ties are broken by more graded picks, then more correct picks.
-</Text>
-        </View>
+       
       </ScrollView>
     </SafeAreaView>
   );
@@ -633,7 +648,7 @@ unlockFill: {
     borderColor: '#20354A',
     borderRadius: 16,
     padding: 17,
-    marginTop: 18,
+    marginBottom: 18,
   },
 
   infoTitle: {
