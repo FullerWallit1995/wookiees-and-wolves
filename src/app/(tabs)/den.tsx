@@ -17,7 +17,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-type Category = 'pack' | 'cantina';
+type Category =
+  | 'pack'
+  | 'cantina'
+  | 'both';
 type Filter = 'all' | Category;
 type ContentFilter = 'all' | 'post' | 'poll';
 
@@ -1023,17 +1026,23 @@ function FeedHeader({
   poll?: boolean;
 }) {
   const categoryName =
-    category === 'pack' ? 'THE PACK' : 'THE CANTINA';
+  category === 'pack'
+    ? 'THE PACK'
+    : category === 'cantina'
+      ? 'THE CANTINA'
+      : 'ALL OF THE DEN';
 
   return (
     <View style={styles.feedHeader}>
       <View style={styles.feedHeaderLeft}>
         <View
           style={[
-            styles.categoryBadge,
-            category === 'cantina' &&
-              styles.cantinaBadge,
-          ]}
+  styles.categoryBadge,
+  category === 'cantina' &&
+    styles.cantinaBadge,
+  category === 'both' &&
+    styles.bothBadge,
+]}
         >
           <Text style={styles.categoryText}>
             {categoryName}
@@ -1159,7 +1168,9 @@ const styles = StyleSheet.create({
   cantinaBadge: {
     backgroundColor: '#355044',
   },
-
+bothBadge: {
+  backgroundColor: '#24313D',
+},
   categoryText: {
     color: '#F3EFE3',
     fontSize: 8,
