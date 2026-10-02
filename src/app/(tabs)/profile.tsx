@@ -622,14 +622,37 @@ useEffect(() => {
 </View>
 
         <View style={styles.accountCard}>
-          <Text style={styles.accountLabel}>
-            ACCOUNT
-          </Text>
+  <Text style={styles.accountLabel}>
+    ACCOUNT
+  </Text>
 
-          <Text style={styles.accountEmail}>
-            {email}
-          </Text>
-        </View>
+  <Text style={styles.accountEmail}>
+    {email}
+  </Text>
+
+  <View style={styles.accountDivider} />
+
+  <Pressable
+    style={styles.accountPrivacyButton}
+    onPress={() =>
+      router.push('/account-privacy')
+    }
+  >
+    <View>
+      <Text style={styles.accountPrivacyTitle}>
+        Account & Privacy
+      </Text>
+
+      <Text style={styles.accountPrivacySubtitle}>
+        Privacy policy and account deletion
+      </Text>
+    </View>
+
+    <Text style={styles.accountPrivacyArrow}>
+      ›
+    </Text>
+  </Pressable>
+</View>
 
         <Pressable
           style={styles.signOutButton}
@@ -873,6 +896,38 @@ avatarImage: {
     fontSize: 14,
     marginTop: 7,
   },
+  accountDivider: {
+  height: 1,
+  backgroundColor: '#20354A',
+  marginTop: 15,
+  marginBottom: 2,
+},
+
+accountPrivacyButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  paddingTop: 13,
+  paddingBottom: 2,
+},
+
+accountPrivacyTitle: {
+  color: '#F3EFE3',
+  fontSize: 14,
+  fontWeight: '800',
+},
+
+accountPrivacySubtitle: {
+  color: '#7F94A7',
+  fontSize: 10,
+  marginTop: 3,
+},
+
+accountPrivacyArrow: {
+  color: '#75C7F0',
+  fontSize: 25,
+  fontWeight: '300',
+},
 editProfileButton: {
   backgroundColor: '#162A3C',
   borderWidth: 1,
