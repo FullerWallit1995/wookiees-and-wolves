@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -58,31 +59,30 @@ export default function AccountPrivacyScreen() {
       setDeleting(true);
 
       const { data, error } =
-  await supabase.functions.invoke(
-    'delete-account',
-    {
-      body: {},
-    }
-  );
+        await supabase.functions.invoke(
+          'delete-account',
+          {
+            body: {},
+          }
+        );
 
-if (error || data?.success !== true) {
-  console.log(
-    'Could not delete account:',
-    error ?? data
-  );
+      if (
+        error ||
+        data?.success !== true
+      ) {
+        console.log(
+          'Could not delete account:',
+          error ?? data
+        );
 
-  Alert.alert(
-    'Account not deleted',
-    'Something went wrong deleting your account. Please try again.'
-  );
+        Alert.alert(
+          'Account not deleted',
+          'Something went wrong deleting your account. Please try again.'
+        );
 
-  return;
-}
+        return;
+      }
 
-      /*
-       * The Auth user no longer exists remotely,
-       * but clear any persisted local session too.
-       */
       await supabase.auth.signOut();
 
       Alert.alert(
@@ -101,115 +101,146 @@ if (error || data?.success !== true) {
     }
   }
 
+  function openDeleteConfirmation() {
+    setShowDeleteConfirm(true);
+
+    setTimeout(() => {
+      scrollRef.current?.scrollToEnd({
+        animated: true,
+      });
+    }, 150);
+  }
+
   return (
     <SafeAreaView
-  style={styles.container}
-  edges={['top']}
->
-  <KeyboardAvoidingView
-    style={styles.flex}
-    behavior={
-      Platform.OS === 'ios'
-        ? 'padding'
-        : undefined
-    }
-  >
-    <ScrollView
-      ref={scrollRef}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
+      style={styles.container}
+      edges={['top']}
     >
-        <Pressable
-          style={styles.backButton}
-          onPress={() => router.back()}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={
+          Platform.OS === 'ios'
+            ? 'padding'
+            : undefined
+        }
+      >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.backButtonText}>
-            ‹ BACK
-          </Text>
-        </Pressable>
-
-        <Text style={styles.eyebrow}>
-          W&W ACCOUNT
-        </Text>
-
-        <Text style={styles.title}>
-          Account & Privacy
-        </Text>
-
-        <Text style={styles.subtitle}>
-          Manage your Wookiees & Wolves account
-          and privacy options.
-        </Text>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionEyebrow}>
-            PRIVACY
-          </Text>
-
-          <Text style={styles.sectionTitle}>
-            Privacy Policy
-          </Text>
-
-          <Text style={styles.sectionText}>
-            Learn what information Wookiees & Wolves
-            collects and how it is used.
-          </Text>
-
-          <View style={styles.comingSoonButton}>
-            <Text style={styles.comingSoonText}>
-              PRIVACY POLICY COMING NEXT
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.backButtonText}>
+              ‹ BACK
             </Text>
+          </Pressable>
+
+          <Text style={styles.eyebrow}>
+            W&W ACCOUNT
+          </Text>
+
+          <Text style={styles.title}>
+            Account & Privacy
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Manage your account, privacy and
+            community settings.
+          </Text>
+
+          {/* PRIVACY & SUPPORT */}
+
+          <Text style={styles.sectionLabel}>
+            PRIVACY & SUPPORT
+          </Text>
+
+          <View style={styles.settingsCard}>
+            <SettingsRow
+              title="Privacy Policy"
+              subtitle="How W&W handles your information"
+              onPress={() =>
+                Linking.openURL(
+                  'https://www.wookieesandwolves.com/privacy/'
+                )
+              }
+            />
+
+            <View style={styles.rowDivider} />
+
+            <SettingsRow
+              title="Community Guidelines"
+              subtitle="Standards for participating in The Den"
+              onPress={() =>
+                Linking.openURL(
+                  'https://www.wookieesandwolves.com/community-guidelines/'
+                )
+              }
+            />
+
+            <View style={styles.rowDivider} />
+
+            <SettingsRow
+              title="Contact W&W"
+              subtitle="Questions, support or community concerns"
+              onPress={() =>
+                Linking.openURL(
+                  'mailto:wookieesandwolves@gmail.com?subject=W%26W%20Support'
+                )
+              }
+            />
           </View>
-        </View>
 
-        <View
-          style={[
-            styles.sectionCard,
-            styles.dangerCard,
-          ]}
-        >
-          <Text style={styles.dangerEyebrow}>
-            DANGER ZONE
-          </Text>
+          {/* ACCOUNT */}
 
-          <Text style={styles.sectionTitle}>
-            Delete Account
-          </Text>
-
-          <Text style={styles.sectionText}>
-            Permanently delete your W&W account and
-            associated account data, including your
-            profile, Predictor picks, likes, poll votes
-            and avatar.
+          <Text style={styles.sectionLabel}>
+            ACCOUNT
           </Text>
 
           {!showDeleteConfirm ? (
-            <Pressable
-              style={styles.deleteButton}
-              onPress={() => {
-  setShowDeleteConfirm(true);
+            <View style={styles.settingsCard}>
+              <Pressable
+                style={styles.deleteRow}
+                onPress={openDeleteConfirmation}
+              >
+                <View style={styles.rowText}>
+                  <Text style={styles.deleteRowTitle}>
+                    Delete Account
+                  </Text>
 
-  setTimeout(() => {
-    scrollRef.current?.scrollToEnd({
-      animated: true,
-    });
-  }, 150);
-}}
-            >
-              <Text style={styles.deleteButtonText}>
-                DELETE MY ACCOUNT
-              </Text>
-            </Pressable>
+                  <Text style={styles.rowSubtitle}>
+                    Permanently delete your W&W account
+                    and associated data
+                  </Text>
+                </View>
+
+                <Text style={styles.deleteArrow}>
+                  ›
+                </Text>
+              </Pressable>
+            </View>
           ) : (
-            <View style={styles.confirmArea}>
-              <Text style={styles.confirmTitle}>
+            <View style={styles.deleteCard}>
+              <Text style={styles.dangerEyebrow}>
+                DELETE ACCOUNT
+              </Text>
+
+              <Text style={styles.deleteTitle}>
                 This cannot be undone.
               </Text>
 
-              <Text style={styles.confirmText}>
-                Type DELETE below to confirm that you
-                want to permanently delete your account.
+              <Text style={styles.deleteDescription}>
+                Permanently deleting your account will
+                remove your W&W profile, avatar,
+                Predictor data, likes and poll votes.
+              </Text>
+
+              <Text style={styles.confirmInstruction}>
+                Type DELETE to continue.
               </Text>
 
               <TextInput
@@ -229,7 +260,9 @@ if (error || data?.success !== true) {
                   (!canDelete || deleting) &&
                     styles.disabledButton,
                 ]}
-                disabled={!canDelete || deleting}
+                disabled={
+                  !canDelete || deleting
+                }
                 onPress={deleteAccount}
               >
                 <Text
@@ -251,31 +284,75 @@ if (error || data?.success !== true) {
                     setConfirmationText('');
                   }}
                 >
-                  <Text style={styles.cancelButtonText}>
+                  <Text
+                    style={
+                      styles.cancelButtonText
+                    }
+                  >
                     CANCEL
                   </Text>
                 </Pressable>
               )}
             </View>
           )}
-        </View>
-         </ScrollView>
-  </KeyboardAvoidingView>
-</SafeAreaView>
+
+          <Text style={styles.footerText}>
+            Need help with your account? Contact
+            wookieesandwolves@gmail.com
+          </Text>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+function SettingsRow({
+  title,
+  subtitle,
+  onPress,
+}: {
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.settingsRow,
+        pressed && styles.settingsRowPressed,
+      ]}
+      onPress={onPress}
+    >
+      <View style={styles.rowText}>
+        <Text style={styles.rowTitle}>
+          {title}
+        </Text>
+
+        <Text style={styles.rowSubtitle}>
+          {subtitle}
+        </Text>
+      </View>
+
+      <Text style={styles.rowArrow}>
+        ›
+      </Text>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#07111F',
   },
-flex: {
-  flex: 1,
-},
+
   content: {
     paddingHorizontal: 18,
-    paddingBottom: 50,
+    paddingBottom: 60,
   },
 
   backButton: {
@@ -316,58 +393,98 @@ flex: {
     fontSize: 14,
     lineHeight: 21,
     marginTop: 7,
-    marginBottom: 28,
+    marginBottom: 30,
   },
 
-  sectionCard: {
-    backgroundColor: '#101D2B',
-    borderWidth: 1,
-    borderColor: '#20354A',
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
-  },
-
-  sectionEyebrow: {
+  sectionLabel: {
     color: '#75C7F0',
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1.5,
-  },
-
-  sectionTitle: {
-    color: '#F3EFE3',
-    fontSize: 19,
-    fontWeight: '900',
-    marginTop: 5,
-  },
-
-  sectionText: {
-    color: '#8FA2B3',
-    fontSize: 13,
-    lineHeight: 20,
+    marginBottom: 8,
     marginTop: 6,
   },
 
-  comingSoonButton: {
+  settingsCard: {
+    backgroundColor: '#101D2B',
     borderWidth: 1,
-    borderColor: '#2A4053',
-    borderRadius: 9,
-    paddingVertical: 12,
+    borderColor: '#20354A',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 26,
+  },
+
+  settingsRow: {
+    minHeight: 72,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 16,
-    opacity: 0.6,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
 
-  comingSoonText: {
-    color: '#8FA2B3',
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.8,
+  settingsRowPressed: {
+    backgroundColor: '#142535',
   },
 
-  dangerCard: {
+  rowText: {
+    flex: 1,
+    paddingRight: 12,
+  },
+
+  rowTitle: {
+    color: '#F3EFE3',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  rowSubtitle: {
+    color: '#7F94A7',
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 3,
+  },
+
+  rowArrow: {
+    color: '#75C7F0',
+    fontSize: 27,
+    fontWeight: '300',
+  },
+
+  rowDivider: {
+    height: 1,
+    backgroundColor: '#20354A',
+    marginLeft: 16,
+  },
+
+  deleteRow: {
+    minHeight: 72,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
+  deleteRowTitle: {
+    color: '#D98B91',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+
+  deleteArrow: {
+    color: '#C98389',
+    fontSize: 27,
+    fontWeight: '300',
+  },
+
+  deleteCard: {
+    backgroundColor: '#15171F',
+    borderWidth: 1,
     borderColor: '#55383D',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 26,
   },
 
   dangerEyebrow: {
@@ -377,45 +494,29 @@ flex: {
     letterSpacing: 1.5,
   },
 
-  deleteButton: {
-    borderWidth: 1,
-    borderColor: '#7A434A',
-    backgroundColor: '#21181D',
-    borderRadius: 9,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 18,
-  },
-
-  deleteButtonText: {
-    color: '#D98B91',
-    fontSize: 9,
+  deleteTitle: {
+    color: '#F3EFE3',
+    fontSize: 20,
     fontWeight: '900',
-    letterSpacing: 1,
+    marginTop: 6,
   },
 
-  confirmArea: {
-    marginTop: 18,
-    borderTopWidth: 1,
-    borderTopColor: '#55383D',
-    paddingTop: 18,
-  },
-
-  confirmTitle: {
-    color: '#D98B91',
-    fontSize: 15,
-    fontWeight: '900',
-  },
-
-  confirmText: {
+  deleteDescription: {
     color: '#A98A8E',
-    fontSize: 12,
-    lineHeight: 18,
-    marginTop: 5,
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 7,
+  },
+
+  confirmInstruction: {
+    color: '#D98B91',
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 18,
   },
 
   confirmInput: {
-    backgroundColor: '#160F13',
+    backgroundColor: '#0D1016',
     borderWidth: 1,
     borderColor: '#55383D',
     borderRadius: 9,
@@ -423,7 +524,7 @@ flex: {
     paddingVertical: 12,
     color: '#F3EFE3',
     fontSize: 14,
-    marginTop: 14,
+    marginTop: 9,
   },
 
   finalDeleteButton: {
@@ -448,7 +549,7 @@ flex: {
   cancelButton: {
     alignItems: 'center',
     paddingVertical: 12,
-    marginTop: 4,
+    marginTop: 3,
   },
 
   cancelButtonText: {
@@ -456,5 +557,14 @@ flex: {
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 1,
+  },
+
+  footerText: {
+    color: '#53697B',
+    fontSize: 10,
+    lineHeight: 16,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    marginTop: 2,
   },
 });
