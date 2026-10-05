@@ -1,17 +1,17 @@
 import {
-    useFocusEffect,
-    useRouter,
+  useFocusEffect,
+  useRouter,
 } from 'expo-router';
 import {
-    useCallback,
-    useState,
+  useCallback,
+  useState,
 } from 'react';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -373,14 +373,23 @@ if (userChecked && !currentUserId) {
     );
 
     return (
-      <View
-        key={entry.user_id}
-        style={[
-          styles.entryCard,
-          isCurrentUser &&
-            styles.currentUserCard,
-        ]}
-      >
+      <Pressable
+  key={entry.user_id}
+  style={({ pressed }) => [
+    styles.entryCard,
+    isCurrentUser &&
+      styles.currentUserCard,
+    pressed && styles.entryCardPressed,
+  ]}
+  onPress={() =>
+    router.push({
+      pathname: '/member/[userId]',
+      params: {
+        userId: entry.user_id,
+      },
+    })
+  }
+>
         <View style={styles.rankColumn}>
           <Text
             style={[
@@ -434,8 +443,7 @@ if (userChecked && !currentUserId) {
             {Number(entry.accuracy).toFixed(1)}%
           </Text>
         </View>
-      </View>
-    );
+</Pressable>    );
   })
 )}  
 
@@ -539,7 +547,9 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     marginBottom: 8,
   },
-
+entryCardPressed: {
+  opacity: 0.7,
+},
   currentUserCard: {
     borderColor: '#75C7F0',
     backgroundColor: '#122536',

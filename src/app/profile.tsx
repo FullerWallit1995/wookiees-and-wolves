@@ -545,6 +545,7 @@ useEffect(() => {
     EDIT PROFILE
   </Text>
 </Pressable>
+
 {role === 'admin' && (
   <Pressable
     style={styles.adminToolsButton}
@@ -609,7 +610,7 @@ useEffect(() => {
         <Text
           style={styles.archivesProfileButtonText}
         >
-          VIEW & EDIT FULL RANKING
+          VIEW FULL RANKING
         </Text>
       </Pressable>
     </>
@@ -627,8 +628,13 @@ useEffect(() => {
       <Pressable
         style={styles.archivesProfileButton}
         onPress={() =>
-          router.push('/archive-movies')
-        }
+  router.push({
+    pathname: '/archive-ranking/[userId]',
+    params: {
+      userId: user.id,
+    },
+  })
+}
       >
         <Text
           style={styles.archivesProfileButtonText}
