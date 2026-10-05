@@ -4,12 +4,13 @@
     "slug": "wookiees-and-wolves",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/wookiees-wolves-logo.png",
+    "icon": "./assets/Moonlit Wookiee Howl.png",
     "scheme": "wookieesandwolves",
     "userInterfaceStyle": "automatic",
     "ios": {
-  "icon": "./assets/wookiees-wolves-logo.png",
-  "bundleIdentifier": "com.wookieesandwolves.app"
+  "icon": "./assets/Moonlit Wookiee Howl.png",
+  "bundleIdentifier": "com.wookieesandwolves.app",
+  "supportsTablet": true
 },
     "android": {
       "adaptiveIcon": {
