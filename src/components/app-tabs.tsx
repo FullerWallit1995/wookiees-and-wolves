@@ -25,16 +25,20 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Label>Predictor</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="chart.bar.fill" />
       </NativeTabs.Trigger>
-
+<NativeTabs.Trigger name="archives">
+  <NativeTabs.Trigger.Label>
+    Archives
+  </NativeTabs.Trigger.Label>
+  <NativeTabs.Trigger.Icon
+    sf="books.vertical.fill"
+  />
+</NativeTabs.Trigger>
       <NativeTabs.Trigger name="den">
         <NativeTabs.Trigger.Label>The Den</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right.fill" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="person.crop.circle.fill" />
-      </NativeTabs.Trigger>
+      
     </NativeTabs>
   );
 }

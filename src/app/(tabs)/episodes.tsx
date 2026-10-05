@@ -1,3 +1,4 @@
+import ProfileButton from '@/components/profile-button';
 import { useEpisodes } from '@/hooks/useEpisodes';
 import { useState } from 'react';
 import {
@@ -58,17 +59,23 @@ const hasMoreEpisodes =
         showsVerticalScrollIndicator={false}
       >
         {/* HEADER */}
-        <Text style={styles.eyebrow}>
-          WOOKIEES & WOLVES
-        </Text>
+<View style={styles.headerRow}>
+  <View style={styles.headerText}>
+    <Text style={styles.eyebrow}>
+      WOOKIEES & WOLVES
+    </Text>
 
-        <Text style={styles.title}>
-          Episodes
-        </Text>
+    <Text style={styles.title}>
+      Episodes
+    </Text>
+  </View>
 
-        <Text style={styles.subtitle}>
-          Watch, listen and catch up on the latest from W&W.
-        </Text>
+  <ProfileButton />
+</View>
+
+<Text style={styles.subtitle}>
+  Watch, listen and catch up on the latest from W&W.
+</Text>
 
         {/* FEATURED EPISODE */}
         <Text style={styles.sectionLabel}>
@@ -291,7 +298,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2,
-    marginTop: 18,
   },
 
   title: {
@@ -308,7 +314,17 @@ const styles = StyleSheet.create({
     marginTop: 7,
     marginBottom: 26,
   },
+headerRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  marginTop: 18,
+},
 
+headerText: {
+  flex: 1,
+  paddingRight: 16,
+},
   sectionLabel: {
     color: '#75C7F0',
     fontSize: 10,

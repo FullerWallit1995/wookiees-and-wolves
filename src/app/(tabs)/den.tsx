@@ -1,3 +1,4 @@
+import ProfileButton from '@/components/profile-button';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -593,12 +594,23 @@ async function vote(
         showsVerticalScrollIndicator={false}
       >
         {/* HEADER */}
-        <Text style={styles.eyebrow}>W&W COMMUNITY</Text>
-        <Text style={styles.title}>The Den</Text>
+<View style={styles.headerRow}>
+  <View style={styles.headerText}>
+    <Text style={styles.eyebrow}>
+      W&W COMMUNITY
+    </Text>
 
-        <Text style={styles.subtitle}>
-          Two fandoms. One community.
-        </Text>
+    <Text style={styles.title}>
+      The Den
+    </Text>
+  </View>
+
+  <ProfileButton />
+</View>
+
+<Text style={styles.subtitle}>
+  Two fandoms. One community.
+</Text>
         {!user && (
   <View style={styles.guestCard}>
     <Text style={styles.guestEyebrow}>
@@ -1081,13 +1093,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 130,
   },
+headerRow: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+  marginTop: 18,
+},
 
+headerText: {
+  flex: 1,
+  paddingRight: 16,
+},
   eyebrow: {
     color: '#75C7F0',
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 2,
-    marginTop: 18,
   },
 
   title: {

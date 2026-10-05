@@ -1,3 +1,4 @@
+import ProfileButton from '@/components/profile-button';
 import { useEpisodes } from '@/hooks/useEpisodes';
 import { usePredictorSummary } from '@/hooks/usePredictorSummary';
 import { supabase } from '@/lib/supabase';
@@ -105,13 +106,17 @@ useFocusEffect(
         showsVerticalScrollIndicator={false}
       >
         {/* BRAND HEADER */}
-        <View style={styles.logoContainer}>
-          <Image
-            source={require('../../../assets/wookiees-wolves-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        </View>
+        <View style={styles.homeHeader}>
+  <View style={styles.profileButtonSpacer} />
+
+  <Image
+    source={require('../../../assets/wookiees-wolves-logo.png')}
+    style={styles.logo}
+    resizeMode="contain"
+  />
+
+  <ProfileButton />
+</View>
 
         <Text style={styles.tagline}>
           STAR WARS • WOLVES BASKETBALL
@@ -472,16 +477,22 @@ toolArrow: {
     paddingHorizontal: 18,
     paddingBottom: 130,
   },
+homeHeader: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  marginTop: 8,
+},
 
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: 8,
-  },
+profileButtonSpacer: {
+  width: 42,
+  height: 42,
+},
 
-  logo: {
-    width: '92%',
-    height: 150,
-  },
+logo: {
+  flex: 1,
+  height: 150,
+  marginHorizontal: 8,
+},
 
   tagline: {
     color: '#9DAFBD',

@@ -20,7 +20,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { supabase } from '@/lib/supabase';
-
+type ProfileArchiveMovie = {
+  item_id: number;
+  rank: number;
+  title: string;
+};
 export default function ProfileScreen() {
   const router = useRouter();
 
@@ -52,7 +56,8 @@ const [predictorGraded, setPredictorGraded] =
 
   const [predictorCompletedGames, setPredictorCompletedGames] =
   useState(0);
-
+const [archiveMovies, setArchiveMovies] =
+  useState<ProfileArchiveMovie[]>([]);
   const loadUser = useCallback(async () => {
   const {
     data: { user },
@@ -73,6 +78,7 @@ const [predictorGraded, setPredictorGraded] =
     setPredictorAccuracy(null);
     setPredictorGraded(0);
     setPredictorCompletedGames(0);
+    setArchiveMovies([]);
     setLoading(false);
     return;
   }
@@ -142,7 +148,43 @@ const [predictorGraded, setPredictorGraded] =
   } else {
     setPollsVotedCount(votesCount ?? 0);
   }
+const {
+  data: archiveRankingData,
+  error: archiveRankingError,
+} = await supabase
+  .from('archive_rankings')
+  .select(`
+    item_id,
+    rank,
+    archive_items!inner (
+      title
+    )
+  `)
+  .eq('user_id', user.id)
+  .eq('ranking_type', 'movies')
+  .order('rank', {
+    ascending: true,
+  })
+  .limit(3);
 
+if (archiveRankingError) {
+  console.log(
+    'Could not load Profile Archives:',
+    archiveRankingError
+  );
+
+  setArchiveMovies([]);
+} else {
+  setArchiveMovies(
+    (archiveRankingData ?? []).map(
+      (row: any) => ({
+        item_id: Number(row.item_id),
+        rank: Number(row.rank),
+        title: row.archive_items.title,
+      })
+    )
+  );
+}
   const {
   data: predictionData,
   error: predictionError,
@@ -265,6 +307,7 @@ if (leaderboardError) {
     setPredictorRank(null);
     setPredictorGraded(0);
     setPredictorAccuracy(null);
+    setArchiveMovies([]);
   }
 }
 
@@ -298,6 +341,7 @@ useEffect(() => {
         setPredictorAccuracy(null);
         setPredictorGraded(0);
         setPredictorCompletedGames(0);
+        setArchiveMovies([]);
         setLoading(false);
         setRole('member');
       }
@@ -354,7 +398,14 @@ useEffect(() => {
         <ScrollView
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
-        >
+        ><Pressable
+  style={styles.backButton}
+  onPress={() => router.back()}
+>
+  <Text style={styles.backButtonText}>
+    ‹ BACK
+  </Text>
+</Pressable>
           <Text style={styles.eyebrow}>YOUR W&W</Text>
           <Text style={styles.title}>Profile</Text>
 
@@ -399,6 +450,7 @@ useEffect(() => {
           </Pressable>
 
           <View style={styles.infoCard}>
+            
             <Text style={styles.infoTitle}>
               Your W&W account
             </Text>
@@ -427,7 +479,14 @@ useEffect(() => {
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-      >
+      ><Pressable
+  style={styles.backButton}
+  onPress={() => router.back()}
+>
+  <Text style={styles.backButtonText}>
+    ‹ BACK
+  </Text>
+</Pressable>
         <Text style={styles.eyebrow}>YOUR W&W</Text>
         <Text style={styles.title}>Profile</Text>
 
@@ -455,7 +514,7 @@ useEffect(() => {
 
   {role === 'admin' && (
     <Image
-      source={require('../../../assets/wookiees-wolves-logo.png')}
+      source={require('../../assets/wookiees-wolves-logo.png')}
       style={styles.adminMark}
       resizeMode="contain"
     />
@@ -496,44 +555,91 @@ useEffect(() => {
     </Text>
   </Pressable>
 )}
-
 <Text style={styles.dashboardSectionLabel}>
-  THE DEN
+  THE ARCHIVES
 </Text>
-<View style={styles.denProfileCard}>
-  <View style={styles.denStatsRow}>
-    <View style={styles.stat}>
-      <Text style={styles.statNumber}>
-        {likesCount}
+
+<View style={styles.archivesProfileCard}>
+  {archiveMovies.length > 0 ? (
+    <>
+      <View style={styles.archivesProfileHeader}>
+        <View>
+          <Text style={styles.archivesProfileEyebrow}>
+            STAR WARS
+          </Text>
+
+          <Text style={styles.archivesProfileTitle}>
+            Movies
+          </Text>
+        </View>
+
+        <Text style={styles.archivesProfileCount}>
+          TOP 3
+        </Text>
+      </View>
+
+      <View style={styles.archivesProfileList}>
+        {archiveMovies.map((movie) => (
+          <View
+            key={movie.item_id}
+            style={styles.archivesProfileRow}
+          >
+            <View style={styles.archivesRankBox}>
+              <Text style={styles.archivesRankNumber}>
+                {String(movie.rank).padStart(
+                  2,
+                  '0'
+                )}
+              </Text>
+            </View>
+
+            <Text style={styles.archivesMovieTitle}>
+              {movie.title}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Pressable
+        style={styles.archivesProfileButton}
+        onPress={() =>
+          router.push('/archive-movies')
+        }
+      >
+        <Text
+          style={styles.archivesProfileButtonText}
+        >
+          VIEW & EDIT FULL RANKING
+        </Text>
+      </Pressable>
+    </>
+  ) : (
+    <>
+      <Text style={styles.archivesEmptyTitle}>
+        Build your Archives
       </Text>
 
-      <Text style={styles.statLabel}>
-        POSTS LIKED
-      </Text>
-    </View>
-
-    <View style={styles.divider} />
-
-    <View style={styles.stat}>
-      <Text style={styles.statNumber}>
-        {pollsVotedCount}
+      <Text style={styles.archivesEmptyText}>
+        Rank the Star Wars movies and make
+        your corner of the galaxy your own.
       </Text>
 
-      <Text style={styles.statLabel}>
-        POLLS VOTED
-      </Text>
-    </View>
-  </View>
-
-  <Pressable
-    style={styles.denProfileButton}
-    onPress={() => router.push('/den')}
-  >
-    <Text style={styles.denProfileButtonText}>
-      VIEW THE DEN
-    </Text>
-  </Pressable>
+      <Pressable
+        style={styles.archivesProfileButton}
+        onPress={() =>
+          router.push('/archive-movies')
+        }
+      >
+        <Text
+          style={styles.archivesProfileButtonText}
+        >
+          RANK THE MOVIES
+        </Text>
+      </Pressable>
+    </>
+  )}
 </View>
+
 <Text style={styles.dashboardSectionLabel}>
   WOLVES PREDICTOR
 </Text>
@@ -619,6 +725,42 @@ useEffect(() => {
       </Pressable>
     </>
   )}
+</View><Text style={styles.dashboardSectionLabel}>
+  THE DEN
+</Text>
+<View style={styles.denProfileCard}>
+  <View style={styles.denStatsRow}>
+    <View style={styles.stat}>
+      <Text style={styles.statNumber}>
+        {likesCount}
+      </Text>
+
+      <Text style={styles.statLabel}>
+        POSTS LIKED
+      </Text>
+    </View>
+
+    <View style={styles.divider} />
+
+    <View style={styles.stat}>
+      <Text style={styles.statNumber}>
+        {pollsVotedCount}
+      </Text>
+
+      <Text style={styles.statLabel}>
+        POLLS VOTED
+      </Text>
+    </View>
+  </View>
+
+  <Pressable
+    style={styles.denProfileButton}
+    onPress={() => router.push('/den')}
+  >
+    <Text style={styles.denProfileButtonText}>
+      VIEW THE DEN
+    </Text>
+  </Pressable>
 </View>
 
         <View style={styles.accountCard}>
@@ -1079,5 +1221,125 @@ adminToolsButtonText: {
   fontSize: 9,
   fontWeight: '900',
   letterSpacing: 1,
+},
+backButton: {
+  alignSelf: 'flex-start',
+  marginTop: 10,
+  marginBottom: 18,
+  paddingHorizontal: 14,
+  paddingVertical: 10,
+  backgroundColor: '#162A3C',
+  borderWidth: 1,
+  borderColor: '#2C4A61',
+  borderRadius: 9,
+},
+
+backButtonText: {
+  color: '#75C7F0',
+  fontSize: 13,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+archivesProfileCard: {
+  width: '100%',
+  backgroundColor: '#101D2B',
+  borderWidth: 1,
+  borderColor: '#20354A',
+  borderRadius: 18,
+  padding: 18,
+},
+
+archivesProfileHeader: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+  justifyContent: 'space-between',
+},
+
+archivesProfileEyebrow: {
+  color: '#75C7F0',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1.4,
+},
+
+archivesProfileTitle: {
+  color: '#F3EFE3',
+  fontSize: 18,
+  fontWeight: '900',
+  marginTop: 3,
+},
+
+archivesProfileCount: {
+  color: '#60778A',
+  fontSize: 8,
+  fontWeight: '900',
+  letterSpacing: 1,
+},
+
+archivesProfileList: {
+  marginTop: 14,
+  gap: 7,
+},
+
+archivesProfileRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  minHeight: 46,
+  backgroundColor: '#0B1723',
+  borderRadius: 10,
+  paddingHorizontal: 9,
+},
+
+archivesRankBox: {
+  width: 34,
+  height: 34,
+  borderRadius: 8,
+  backgroundColor: '#162A3C',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 11,
+},
+
+archivesRankNumber: {
+  color: '#75C7F0',
+  fontSize: 11,
+  fontWeight: '900',
+},
+
+archivesMovieTitle: {
+  flex: 1,
+  color: '#F3EFE3',
+  fontSize: 13,
+  fontWeight: '800',
+},
+
+archivesProfileButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 16,
+},
+
+archivesProfileButtonText: {
+  color: '#75C7F0',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+
+archivesEmptyTitle: {
+  color: '#F3EFE3',
+  fontSize: 16,
+  fontWeight: '900',
+},
+
+archivesEmptyText: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 5,
 },
 });
