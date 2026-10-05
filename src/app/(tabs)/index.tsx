@@ -21,12 +21,21 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+type HomeArchiveMovie = {
+  item_id: number;
+  rank: number;
+  title: string;
+};
 export default function HomeScreen() {
   const router = useRouter();
   const [displayName, setDisplayName] =
   useState<string | null>(null);
   const [isSignedIn, setIsSignedIn] = useState(false);
+  const [archiveMovies, setArchiveMovies] =
+  useState<HomeArchiveMovie[]>([]);
+
+const [archivesLoading, setArchivesLoading] =
+  useState(true);
     const {
     latestEpisode,
     loading: episodesLoading,
@@ -97,6 +106,65 @@ useFocusEffect(
     }
 
     refreshAuth();
+  }, [])
+);
+useFocusEffect(
+  useCallback(() => {
+    async function loadHomeArchives() {
+      setArchivesLoading(true);
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          setArchiveMovies([]);
+          return;
+        }
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from('archive_rankings')
+          .select(`
+            item_id,
+            rank,
+            archive_items!inner (
+              title
+            )
+          `)
+          .eq('user_id', user.id)
+          .eq('ranking_type', 'movies')
+          .order('rank', {
+            ascending: true,
+          })
+          .limit(3);
+
+        if (error) {
+          console.log(
+            'Could not load Home Archives:',
+            error
+          );
+
+          setArchiveMovies([]);
+          return;
+        }
+
+        setArchiveMovies(
+          (data ?? []).map((row: any) => ({
+            item_id: Number(row.item_id),
+            rank: Number(row.rank),
+            title: row.archive_items.title,
+          }))
+        );
+      } finally {
+        setArchivesLoading(false);
+      }
+    }
+
+    loadHomeArchives();
   }, [])
 );
   return (
@@ -255,7 +323,96 @@ useFocusEffect(
   </View>
 </View>
 
-         
+     {/* THE ARCHIVES */}
+<View style={styles.sectionHeader}>
+  <Text style={styles.sectionTitle}>
+    The Archives
+  </Text>
+
+  <Pressable
+    style={styles.sectionButton}
+    onPress={() => router.push('/archives')}
+  >
+    <Text style={styles.sectionLink}>
+      OPEN
+    </Text>
+  </Pressable>
+</View>
+
+<View style={styles.archivesCard}>
+  <View style={styles.archivesTop}>
+    <View style={styles.archivesInfo}>
+      <Text style={styles.kicker}>
+        STAR WARS
+      </Text>
+
+      <Text style={styles.archivesTitle}>
+        {archiveMovies.length > 0
+          ? 'Your Movie Rankings'
+          : 'Rank the Galaxy'}
+      </Text>
+
+      {archivesLoading ? (
+        <Text style={styles.archivesDescription}>
+          Reading your Archives...
+        </Text>
+      ) : archiveMovies.length > 0 ? (
+        <View style={styles.archivesList}>
+          {archiveMovies.map((movie) => (
+            <View
+              key={movie.item_id}
+              style={styles.archivesRow}
+            >
+              <View style={styles.archivesRankBox}>
+                <Text style={styles.archivesRank}>
+                  {String(movie.rank).padStart(
+                    2,
+                    '0'
+                  )}
+                </Text>
+              </View>
+
+              <Text style={styles.archivesMovieTitle}>
+                {movie.title}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : (
+        <Text style={styles.archivesDescription}>
+          Put every Star Wars movie in your
+          order and compare your ranking with
+          the W&W community.
+        </Text>
+      )}
+    </View>
+
+    <Image
+      source={require('../../../assets/wookiees-and-wolves-small_sw_image.png')}
+      style={styles.archivesLogo}
+      resizeMode="contain"
+    />
+  </View>
+
+  <Pressable
+    style={styles.archivesButton}
+    onPress={() =>
+      router.push(
+        archiveMovies.length > 0
+          ? '/archive-movies'
+          : '/archives'
+      )
+    }
+  >
+    <Text style={styles.archivesButtonText}>
+      {archiveMovies.length > 0
+        ? 'VIEW & EDIT MY RANKING'
+        : isSignedIn
+          ? 'BUILD MY ARCHIVES'
+          : 'EXPLORE THE ARCHIVES'}
+    </Text>
+  </Pressable>
+</View>    
         
 
         {/* THE DEN */}
@@ -791,6 +948,93 @@ socialButton: {
 
 socialButtonText: {
   color: '#DCE8EF',
+  fontSize: 9,
+  fontWeight: '900',
+  letterSpacing: 0.8,
+},
+archivesCard: {
+  backgroundColor: '#101D2B',
+  borderRadius: 20,
+  borderWidth: 1,
+  borderColor: '#20354A',
+  padding: 20,
+  marginBottom: 28,
+},
+
+archivesTop: {
+  flexDirection: 'row',
+  alignItems: 'flex-start',
+},
+
+archivesInfo: {
+  flex: 1,
+  paddingRight: 14,
+},
+
+archivesLogo: {
+  width: 64,
+  height: 64,
+},
+
+archivesTitle: {
+  color: '#F3EFE3',
+  fontSize: 21,
+  fontWeight: '900',
+},
+
+archivesDescription: {
+  color: '#8FA2B3',
+  fontSize: 13,
+  lineHeight: 19,
+  marginTop: 6,
+},
+
+archivesList: {
+  marginTop: 12,
+  gap: 6,
+},
+
+archivesRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  minHeight: 38,
+},
+
+archivesRankBox: {
+  width: 31,
+  height: 31,
+  borderRadius: 7,
+  backgroundColor: '#162A3C',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 9,
+},
+
+archivesRank: {
+  color: '#75C7F0',
+  fontSize: 10,
+  fontWeight: '900',
+},
+
+archivesMovieTitle: {
+  flex: 1,
+  color: '#F3EFE3',
+  fontSize: 12,
+  fontWeight: '800',
+},
+
+archivesButton: {
+  backgroundColor: '#172A3C',
+  borderWidth: 1,
+  borderColor: '#31516B',
+  borderRadius: 9,
+  paddingVertical: 11,
+  alignItems: 'center',
+  marginTop: 16,
+},
+
+archivesButtonText: {
+  color: '#75C7F0',
   fontSize: 9,
   fontWeight: '900',
   letterSpacing: 0.8,
