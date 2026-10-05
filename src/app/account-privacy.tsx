@@ -39,8 +39,7 @@ export default function AccountPrivacyScreen() {
 
     Alert.alert(
       'Permanently delete account?',
-      'This will permanently delete your W&W account, profile, Predictor data, likes, votes and avatar. This cannot be undone.',
-      [
+'This will permanently delete your W&W account, profile, Predictor data, Archives rankings, likes, votes and avatar. This cannot be undone.',      [
         {
           text: 'Cancel',
           style: 'cancel',
@@ -183,7 +182,15 @@ export default function AccountPrivacyScreen() {
             />
 
             <View style={styles.rowDivider} />
+<SettingsRow
+  title="Fan Project Disclaimer"
+  subtitle="W&W affiliation and intellectual property notice"
+  onPress={() =>
+    router.push('/disclaimer')
+  }
+/>
 
+<View style={styles.rowDivider} />
             <SettingsRow
               title="Contact W&W"
               subtitle="Questions, support or community concerns"
@@ -235,8 +242,9 @@ export default function AccountPrivacyScreen() {
 
               <Text style={styles.deleteDescription}>
                 Permanently deleting your account will
-                remove your W&W profile, avatar,
-                Predictor data, likes and poll votes.
+remove your W&W profile, avatar,
+Predictor data, Archives rankings,
+likes and poll votes.
               </Text>
 
               <Text style={styles.confirmInstruction}>
