@@ -60,7 +60,9 @@ type DenFeedRow = {
     id: number;
     text: string;
     sort_order: number;
+    votes: number;
   }[] | null;
+  interaction_count: number;
   total_count: number;
 };
 
@@ -185,7 +187,7 @@ async function loadFeed(
             type: 'post',
             category: row.category,
             text: row.content,
-            likes: 0,
+            likes: Number(row.interaction_count ?? 0),
             time: formatFeedTime(
               row.created_at
             ),
@@ -204,7 +206,7 @@ async function loadFeed(
             (option) => ({
               id: String(option.id),
               text: option.text,
-              votes: 0,
+              votes: Number(option.votes ?? 0),
             })
           ),
         };
@@ -282,8 +284,8 @@ const visibleFeed = feedItems;
 
 
 useEffect(() => {
-  async function loadInteractions() {
-    if (feedItems.length === 0) {
+  async function loadMyInteractions() {
+    if (!user || feedItems.length === 0) {
       setLikedPosts({});
       setPollVotes({});
       return;
@@ -310,7 +312,8 @@ useEffect(() => {
       postIds.length > 0
         ? supabase
             .from('post_likes')
-            .select('post_id, user_id')
+            .select('post_id')
+            .eq('user_id', user.id)
             .in('post_id', postIds)
         : Promise.resolve({
             data: [],
@@ -320,7 +323,8 @@ useEffect(() => {
       pollIds.length > 0
         ? supabase
             .from('poll_votes')
-            .select('poll_id, option_id, user_id')
+            .select('poll_id, option_id')
+            .eq('user_id', user.id)
             .in('poll_id', pollIds)
         : Promise.resolve({
             data: [],
@@ -330,78 +334,37 @@ useEffect(() => {
 
     if (likesError) {
       console.log(
-        'Could not load post likes:',
+        'Could not load my post likes:',
         likesError
       );
     }
 
     if (votesError) {
       console.log(
-        'Could not load poll votes:',
+        'Could not load my poll votes:',
         votesError
       );
     }
 
-    const likeCounts: Record<number, number> = {};
     const myLikes: Record<number, boolean> = {};
 
     (likes ?? []).forEach((like) => {
-      likeCounts[like.post_id] =
-        (likeCounts[like.post_id] ?? 0) + 1;
-
-      if (
-        user &&
-        like.user_id === user.id
-      ) {
-        myLikes[like.post_id] = true;
-      }
+      myLikes[like.post_id] = true;
     });
 
-    const voteCounts: Record<string, number> = {};
     const myVotes: Record<number, string> = {};
 
     (votes ?? []).forEach((vote) => {
-      const optionId = String(vote.option_id);
-
-      voteCounts[optionId] =
-        (voteCounts[optionId] ?? 0) + 1;
-
-      if (
-        user &&
-        vote.user_id === user.id
-      ) {
-        myVotes[vote.poll_id] = optionId;
-      }
+      myVotes[vote.poll_id] = String(
+        vote.option_id
+      );
     });
 
     setLikedPosts(myLikes);
     setPollVotes(myVotes);
-
-    setFeedItems((currentItems) =>
-      currentItems.map((item) => {
-        if (item.type === 'post') {
-          return {
-            ...item,
-            likes:
-              likeCounts[item.id] ?? 0,
-          };
-        }
-
-        return {
-          ...item,
-          options: item.options.map(
-            (option) => ({
-              ...option,
-              votes:
-                voteCounts[option.id] ?? 0,
-            })
-          ),
-        };
-      })
-    );
   }
 
-  loadInteractions();
+  loadMyInteractions();
 }, [feedItems.length, user]);
 
 function promptSignIn() {

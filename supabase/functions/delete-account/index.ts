@@ -213,9 +213,96 @@ Deno.serve(async (req) => {
         `Could not delete Predictor data: ${predictionsError.message}`
       );
     }
-
     /*
-     * 5. Delete profile.
+ * 5. Delete Archives rankings.
+ */
+const { error: archivesError } =
+  await adminClient
+    .from('archive_rankings')
+    .delete()
+    .eq('user_id', userId);
+
+if (archivesError) {
+  throw new Error(
+    `Could not delete Archives data: ${archivesError.message}`
+  );
+}
+
+/*
+ * 6. Delete notification preferences.
+ */
+const { error: notificationPreferencesError } =
+  await adminClient
+    .from('notification_preferences')
+    .delete()
+    .eq('user_id', userId);
+
+if (notificationPreferencesError) {
+  throw new Error(
+    `Could not delete notification preferences: ${notificationPreferencesError.message}`
+  );
+}
+
+/*
+ * 7. Delete push tokens.
+ */
+const { error: pushTokensError } =
+  await adminClient
+    .from('push_tokens')
+    .delete()
+    .eq('user_id', userId);
+
+if (pushTokensError) {
+  throw new Error(
+    `Could not delete push tokens: ${pushTokensError.message}`
+  );
+}
+/*
+ * 5. Delete Archives rankings.
+ */
+const { error: archivesError } =
+  await adminClient
+    .from('archive_rankings')
+    .delete()
+    .eq('user_id', userId);
+
+if (archivesError) {
+  throw new Error(
+    `Could not delete Archives data: ${archivesError.message}`
+  );
+}
+
+/*
+ * 6. Delete notification preferences.
+ */
+const { error: notificationPreferencesError } =
+  await adminClient
+    .from('notification_preferences')
+    .delete()
+    .eq('user_id', userId);
+
+if (notificationPreferencesError) {
+  throw new Error(
+    `Could not delete notification preferences: ${notificationPreferencesError.message}`
+  );
+}
+
+/*
+ * 7. Delete push tokens.
+ */
+const { error: pushTokensError } =
+  await adminClient
+    .from('push_tokens')
+    .delete()
+    .eq('user_id', userId);
+
+if (pushTokensError) {
+  throw new Error(
+    `Could not delete push tokens: ${pushTokensError.message}`
+  );
+}
+    /*
+     * 8. Delete profile.
      */
     const { error: profileError } =
       await adminClient
@@ -230,7 +317,7 @@ Deno.serve(async (req) => {
     }
 
     /*
-     * 6. Delete the Auth user LAST.
+     * 9. Delete the Auth user LAST.
      *
      * No user ID is supplied by the mobile app.
      * We only delete the authenticated caller.
@@ -258,26 +345,23 @@ Deno.serve(async (req) => {
         },
       }
     );
-  } catch (error) {
-    console.error(
-      'Delete account error:',
-      error
-    );
+} catch (error) {
+  console.error(
+    'Delete account error:',
+    error
+  );
 
-    return new Response(
-      JSON.stringify({
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Account deletion failed',
-      }),
-      {
-        status: 500,
-        headers: {
-          ...corsHeaders,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-  }
+  return new Response(
+    JSON.stringify({
+      error: 'Account deletion failed',
+    }),
+    {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
 });
