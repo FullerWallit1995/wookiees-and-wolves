@@ -7,14 +7,15 @@
     "icon": "./assets/Moonlit Wookiee Howl.png",
     "scheme": "wookieesandwolves",
     "userInterfaceStyle": "automatic",
-   "ios": {
-  "icon": "./assets/Moonlit Wookiee Howl.png",
-  "bundleIdentifier": "com.wookieesandwolves.app",
-  "supportsTablet": true,
-  "infoPlist": {
-    "NSPhotoLibraryUsageDescription": "Wookiees & Wolves uses your photo library so you can choose a profile picture."
-  }
-},
+    "ios": {
+      "icon": "./assets/Moonlit Wookiee Howl.png",
+      "bundleIdentifier": "com.wookieesandwolves.app",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Wookiees & Wolves uses your photo library so you can choose a profile picture.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -31,22 +32,22 @@
     "plugins": [
       "expo-router",
       [
-  "expo-splash-screen",
-  {
-    "backgroundColor": "#07111F",
-    "image": "./assets/wookiees-wolves-logo.png",
-    "imageWidth": 180
-  }
-],
-     [
-  "expo-image-picker",
-  {
-    "photosPermission": "Wookiees & Wolves uses your photo library so you can choose a profile picture.",
-    "cameraPermission": false,
-    "microphonePermission": false
-  }
-],
-"expo-font"
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#07111F",
+          "image": "./assets/wookiees-wolves-logo.png",
+          "imageWidth": 180
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Wookiees & Wolves uses your photo library so you can choose a profile picture.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
