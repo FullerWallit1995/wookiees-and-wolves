@@ -1,4 +1,5 @@
 
+import { useProfileOnboarding } from '@/contexts/profile-onboarding-context';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -18,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CompleteProfileScreen() {
   const router = useRouter();
-
+const { refreshProfile } = useProfileOnboarding();
   const [displayName, setDisplayName] = useState('');
   const [username, setUsername] = useState('');
   const [saving, setSaving] = useState(false);
@@ -91,10 +92,10 @@ export default function CompleteProfileScreen() {
         return;
       }
 
-      // The root onboarding gate will verify that
-      // this profile is complete before allowing
-      // normal member navigation.
-      router.replace('/');
+      // Recheck the saved profile.
+// Protected routes will unlock when the status
+// changes from incomplete to complete.
+await refreshProfile();
 
     } catch (error: unknown) {
       Alert.alert(
