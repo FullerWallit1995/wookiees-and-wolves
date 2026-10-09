@@ -4,68 +4,87 @@ import {
   useProfileOnboarding,
 } from '@/contexts/profile-onboarding-context';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 function RootNavigator() {
   const { status, errorMessage, refreshProfile } =
     useProfileOnboarding();
 
-  if (status === 'checking') {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color="#75C7F0" />
-      </View>
-    );
-  }
+const canAccessApp =
+  status === 'guest' || status === 'complete';
 
-  if (status === 'error') {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorTitle}>
-          Could not check your profile.
-        </Text>
-        <Text style={styles.errorDetail}>
-          {errorMessage}
-        </Text>
-        <Pressable
-          style={styles.retryButton}
-          onPress={() => void refreshProfile()}
-        >
-          <Text style={styles.retryText}>TRY AGAIN</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  const needsProfile = status === 'incomplete';
+const needsProfile =
+  status === 'incomplete';
+  // Keep the navigation Stack mounted during authentication
+  // refreshes. Only use an overlay for checking/error states.
+  const showChecking = status === 'checking';
+  const showError = status === 'error';
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={!needsProfile}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="auth" />
-        <Stack.Screen name="profile" />
-        <Stack.Screen name="edit-profile" />
-        <Stack.Screen name="leaderboard" />
-        <Stack.Screen name="aurebesh" />
-        <Stack.Screen name="archive-movies" />
-        <Stack.Screen name="archive-community" />
-        <Stack.Screen name="archive-ranking/[userId]" />
-        <Stack.Screen name="member/[userId]" />
-        <Stack.Screen name="admin" />
-        <Stack.Screen name="account-privacy" />
-        <Stack.Screen name="explore" />
-<Stack.Screen name="disclaimer" />
-      </Stack.Protected>
+    <View style={styles.root}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Protected guard={canAccessApp}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="auth" />
+          <Stack.Screen name="profile" />
+          <Stack.Screen name="edit-profile" />
+          <Stack.Screen name="leaderboard" />
+          <Stack.Screen name="aurebesh" />
+          <Stack.Screen name="archive-movies" />
+          <Stack.Screen name="archive-community" />
+          <Stack.Screen name="archive-ranking/[userId]" />
+          <Stack.Screen name="member/[userId]" />
+          <Stack.Screen name="admin" />
+          <Stack.Screen name="account-privacy" />
+          <Stack.Screen name="explore" />
+          <Stack.Screen name="disclaimer" />
+        </Stack.Protected>
 
-      <Stack.Protected guard={needsProfile}>
-        <Stack.Screen name="complete-profile" />
-      </Stack.Protected>
-      <Stack.Screen name="verify-email" />
-      <Stack.Screen name="forgot-password" />
-<Stack.Screen name="reset-password" />
-    </Stack>
+        <Stack.Protected guard={needsProfile}>
+          <Stack.Screen name="complete-profile" />
+        </Stack.Protected>
+
+        {/* Authentication utility routes remain accessible */}
+        <Stack.Screen name="verify-email" />
+        <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password" />
+      </Stack>
+
+      {(showChecking || showError) && (
+        <View style={styles.overlay}>
+          {showChecking ? (
+            <ActivityIndicator color="#75C7F0" />
+          ) : (
+            <>
+              <Text style={styles.errorTitle}>
+                Could not check your profile.
+              </Text>
+
+              <Text style={styles.errorDetail}>
+                {errorMessage}
+              </Text>
+
+              <Pressable
+                style={styles.retryButton}
+                onPress={() => void refreshProfile()}
+              >
+                <Text style={styles.retryText}>
+                  TRY AGAIN
+                </Text>
+              </Pressable>
+            </>
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -80,13 +99,23 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  center: {
+  root: {
     flex: 1,
     backgroundColor: '#07111F',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
   },
+ overlay: {
+  position: 'absolute',
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  backgroundColor: '#07111F',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 24,
+  zIndex: 100,
+  elevation: 100,
+},
   errorTitle: {
     color: '#F3EFE3',
     fontSize: 18,

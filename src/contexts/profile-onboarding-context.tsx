@@ -41,13 +41,14 @@ export function ProfileOnboardingProvider({
   const [errorMessage, setErrorMessage] = useState('');
 
   const requestId = useRef(0);
+  const verifiedUserId = useRef<string | null>(null);
 
   const refreshProfile = useCallback(async () => {
     const currentRequest = ++requestId.current;
 
-    setStatus('checking');
-    setErrorMessage('');
-
+    // Keep the existing navigation status while
+    // checking the same user. If the account changes,
+    // immediately restrict navigation.
     try {
       const {
         data: { session },
@@ -63,9 +64,18 @@ export function ProfileOnboardingProvider({
       }
 
       const currentUser = session?.user ?? null;
+      const currentUserId = currentUser?.id ?? null;
+
+      if (currentUserId !== verifiedUserId.current) {
+        verifiedUserId.current = null;
+        setStatus('checking');
+      }
+
       setUser(currentUser);
+      setErrorMessage('');
 
       if (!currentUser) {
+        verifiedUserId.current = null;
         setStatus('guest');
         return;
       }
@@ -82,6 +92,7 @@ export function ProfileOnboardingProvider({
         return;
       }
 
+      verifiedUserId.current = currentUser.id;
       setStatus(result.status);
     } catch (error) {
       if (currentRequest !== requestId.current) return;
@@ -100,13 +111,29 @@ export function ProfileOnboardingProvider({
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      // Avoid making Supabase requests directly
-      // inside the authentication callback.
-      setTimeout(() => {
-        void refreshProfile();
-      }, 0);
-    });
+    } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        // A different user must not inherit the
+        // previous user's verified profile status.
+        const incomingUserId =
+          session?.user?.id ?? null;
+
+        if (
+          incomingUserId !== verifiedUserId.current
+        ) {
+          requestId.current += 1;
+          verifiedUserId.current = null;
+          setStatus('checking');
+          setUser(session?.user ?? null);
+        }
+
+        // Supabase requests must happen outside
+        // the auth-state callback.
+        setTimeout(() => {
+          void refreshProfile();
+        }, 0);
+      }
+    );
 
     return () => {
       requestId.current += 1;

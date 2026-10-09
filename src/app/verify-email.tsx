@@ -3,11 +3,11 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -26,9 +26,9 @@ export default function VerifyEmailScreen() {
   useEffect(() => {
     async function verifyEmail() {
       if (!verificationUrl) {
-        return;
-      }
-
+  setVerificationState('error');
+  return;
+}
       try {
         setVerificationState('verifying');
 
@@ -213,6 +213,14 @@ export default function VerifyEmailScreen() {
                 BACK TO SIGN IN
               </Text>
             </Pressable>
+            <Pressable
+  style={styles.secondaryButton}
+  onPress={() => router.replace('/')}
+>
+  <Text style={styles.secondaryButtonText}>
+    RETURN TO HOME
+  </Text>
+</Pressable>
           </View>
         )}
       </ScrollView>
